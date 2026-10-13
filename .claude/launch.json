@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "delft",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8644", "--directory", "/Users/aabarakov/projects/delft-by-building/web"],
+      "port": 8644
+    }
+  ]
+}

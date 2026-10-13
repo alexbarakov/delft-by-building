@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LAYRS: Delft</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="logo.js" defer></script>
+</head>
+<body>
+<canvas id="scene" aria-label="3D map of Delft's buildings"></canvas>
+<div class="veil veil-top" aria-hidden="true"></div>
+<div class="veil veil-bottom" aria-hidden="true"></div>
+
+<header class="masthead">
+  
+  <div>
+    <h1><span class="layrs" aria-label="LAYRS">LAYRS</span>Delft<i class="baseline"></i></h1>
+    <p class="dek">Every building standing today, by age and historical context.</p>
+  </div>
+</header>
+
+<nav class="modes" aria-label="Colour the city by">
+  <button data-mode="0" aria-pressed="true">Period</button>
+  <button data-mode="3" aria-pressed="false">Context layers</button>
+  <button data-mode="1" aria-pressed="false">Floors</button>
+  <button data-mode="2" aria-pressed="false">Energy</button>
+</nav>
+
+<div class="lang" role="group" aria-label="Language">
+  <button class="about-open" aria-haspopup="dialog">About</button>
+  <button data-lang="en" aria-pressed="true">EN</button><button data-lang="nl" aria-pressed="false">NL</button>
+</div>
+
+<dialog id="about" class="about" aria-labelledby="about-title">
+  <button class="about-close" aria-label="Close">×</button>
+  <article lang="en" data-lang-block="en">
+    <h2 id="about-title">About this map</h2>
+    <p>All 37,000 buildings of Delft, coloured by the year they were built and set in the history that shaped them.</p>
+    <p class="notice">A non-commercial project, made out of curiosity and for education.</p>
+    <p class="author">Made by <a href="https://www.linkedin.com/in/alexanderbarakov" target="_blank" rel="noopener">Alex Barakov</a>.</p>
+    <p class="credit">Inspired by Sasha Bogachev and his <a href="https://paris.bogachev.fr" target="_blank" rel="noopener">Paris, building by building</a>.</p>
+    <h3>LAYRS projects</h3>
+    <p>LAYRS maps cities building by building: each one with its age and the layers of history it belongs to.</p>
+    <ul>
+      <li><a href="/lab/delft/">LAYRS: Delft</a>, you are here.</li>
+      <li><a href="/lab/amsterdam/">LAYRS: Amsterdam</a>: 192,000 buildings of Amsterdam, from the canal ring to the raid on Noord.</li>
+      <li><a href="/ru/lab/spb/">LAYRS: St. Petersburg</a>: 107,000 buildings of St. Petersburg, from Pushkin's flats to the 1941 air-raid reports (in Russian).</li>
+    </ul>
+    <h3>Open source</h3>
+    <p>The code and the pipeline are on <a href="https://github.com/alexbarakov/delft-by-building" target="_blank" rel="noopener">GitHub</a>. Know a piece of Delft's history
+    that lives in its buildings? <a href="https://github.com/alexbarakov/delft-by-building/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Add it as a layer</a>:
+    a list of addresses, a short story for each and the Wikipedia article it rests on.</p>
+    <h3>Data</h3>
+    <p>Downloaded on 13 October 2026.</p>
+    <ul>
+      <li>Buildings, heights, years: 3D BAG v2025.09.03 (TU Delft) on the Dutch building register BAG. CC BY 4.0.</li>
+      <li>Water, boundary, addresses: BGT and BAG via PDOK. CC0. Street names: OpenStreetMap contributors, ODbL.</li>
+      <li>Monuments: national monument register (RCE). CC0.</li>
+      <li>Energy labels: RVO via RIVM Atlas Leefomgeving. Public domain.</li>
+      <li>Names, photos, stories: Wikidata, Wikipedia, Wikimedia Commons; each photo credits its author and licence.</li>
+    </ul>
+    <h3>Method</h3>
+    <p>Placeholder and rounded years in BAG are estimated from dated neighbours; where the monument register dates a building
+    earlier, the register wins. Approximate years are paler and marked “c.”. Every hand-written story is checked against its
+    Wikipedia article; the residents layer is found automatically and may contain errors.</p>
+  </article>
+  <article lang="nl" data-lang-block="nl" hidden>
+    <h2>Over deze kaart</h2>
+    <p>Alle 37.000 gebouwen van Delft, gekleurd naar hun bouwjaar en geplaatst in de geschiedenis die ze vormde.</p>
+    <p class="notice">Een niet-commercieel project, gemaakt uit nieuwsgierigheid en voor onderwijs.</p>
+    <p class="author">Gemaakt door <a href="https://www.linkedin.com/in/alexanderbarakov" target="_blank" rel="noopener">Alex Barakov</a>.</p>
+    <p class="credit">Geïnspireerd door Sasha Bogachev en zijn <a href="https://paris.bogachev.fr" target="_blank" rel="noopener">Paris, building by building</a>.</p>
+    <h3>LAYRS-projecten</h3>
+    <p>LAYRS brengt steden gebouw voor gebouw in kaart: elk met zijn leeftijd en de lagen geschiedenis waartoe het behoort.</p>
+    <ul>
+      <li><a href="/lab/delft/">LAYRS: Delft</a>, hier ben je nu.</li>
+      <li><a href="/lab/amsterdam/">LAYRS: Amsterdam</a>: 192.000 gebouwen van Amsterdam, van de grachtengordel tot het bombardement op Noord.</li>
+      <li><a href="/ru/lab/spb/">LAYRS: St. Petersburg</a>: 107.000 gebouwen van Sint-Petersburg, van Poesjkins woningen tot de luchtaanvalsrapporten van 1941 (in het Russisch).</li>
+    </ul>
+    <h3>Open source</h3>
+    <p>De code en de pijplijn staan op <a href="https://github.com/alexbarakov/delft-by-building" target="_blank" rel="noopener">GitHub</a>. Ken je een stuk Delftse geschiedenis
+    dat in de gebouwen zit? <a href="https://github.com/alexbarakov/delft-by-building/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Voeg het toe als laag</a>:
+    een lijst adressen, bij elk een kort verhaal en het Wikipedia-artikel waarop het rust.</p>
+    <h3>Gegevens</h3>
+    <p>Gedownload op 13 oktober 2026.</p>
+    <ul>
+      <li>Gebouwen, hoogtes, bouwjaren: 3D BAG v2025.09.03 (TU Delft) op basis van de BAG. CC BY 4.0.</li>
+      <li>Water, grens, adressen: BGT en BAG via PDOK. CC0. Straatnamen: bijdragers aan OpenStreetMap, ODbL.</li>
+      <li>Monumenten: rijksmonumentenregister (RCE). CC0.</li>
+      <li>Energielabels: RVO via de Atlas Leefomgeving van het RIVM. Publiek domein.</li>
+      <li>Namen, foto's, verhalen: Wikidata, Wikipedia, Wikimedia Commons; bij elke foto staan maker en licentie.</li>
+    </ul>
+    <h3>Methode</h3>
+    <p>Plaatshouders en afgeronde jaartallen in de BAG zijn geschat uit gedateerde buren; waar het monumentenregister een gebouw
+    eerder dateert, wint het register. Geschatte jaren zijn lichter en gemarkeerd met “c.”. Elk zelfgeschreven verhaal is
+    gecontroleerd aan zijn Wikipedia-artikel; de laag met bewoners is automatisch gevonden en kan fouten bevatten.</p>
+  </article>
+</dialog>
+
+<div class="tally" aria-live="polite">
+  <span id="year" class="tally-year">2025</span>
+  <span class="tally-count"><span id="count">0</span> buildings</span>
+</div>
+
+<aside id="panel" class="panel">
+  <button class="sheet-handle" aria-expanded="true" aria-controls="panel-body">Show legend</button>
+  <div id="panel-body"></div>
+</aside>
+
+<div id="card" class="card" hidden></div>
+<p class="howto">Drag to turn. Right-drag or Shift-drag to move. Scroll to zoom.</p>
+
+<footer class="timeline">
+  <button id="play" class="play" aria-label="Play the city's growth">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M4 2.5v11l9-5.5z"/></svg>
+  </button>
+  <canvas id="hist" aria-label="Buildings per year; drag to set the year"></canvas>
+</footer>
+
+<div id="loading" class="loading">Building the city <span id="progress">0</span>%</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

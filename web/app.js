@@ -59,7 +59,7 @@ const NL_UI = {
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
   'Your tiles': 'Jouw tegeltjes', 'Easy': 'Makkelijk', 'Medium': 'Gemiddeld', 'Hard': 'Moeilijk',
   'Hint': 'Hint', 'Open the layer': 'Open de laag', 'Colour the map for it': 'Kleur de kaart ervoor', 'Show me': 'Laat zien',
-  'Next riddle': 'Volgend raadsel', 'See all quests': 'Alle speurtochten', 'Found!': 'Gevonden!', 'Right': 'Goed',
+  'Next riddle': 'Volgend raadsel', 'Colour by period': 'Kleur naar periode', 'Colour by floors': 'Kleur naar verdiepingen', 'Colour by energy label': 'Kleur naar energielabel', 'See all quests': 'Alle speurtochten', 'Found!': 'Gevonden!', 'Right': 'Goed',
   'Without a single hint.': 'Zonder één hint.', 'Shown, not found: no tiles.': 'Getoond, niet gevonden: geen tegeltjes.',
   'Quest complete': 'Speurtocht voltooid', 'Any of {n} buildings counts.': 'Elk van {n} gebouwen telt.',
   'One of the buildings that answer the riddle.': 'Een van de gebouwen die het raadsel beantwoorden.',
@@ -726,6 +726,7 @@ function answerGids(a) {
   answerCache = { a, g };
   return g;
 }
+const MODE_LABEL = { period: 'Colour by period', floors: 'Colour by floors', energy: 'Colour by energy label' };
 const stepTiles = () => revealed ? 0 : Math.max(1, 3 - hintsShown);
 function renderQuest() {
   if (!quest) return;
@@ -748,7 +749,7 @@ function renderQuest() {
       ? (last ? `<button class="primary q-list">${t('See all quests')}</button>`
               : `<button class="primary q-next">${t('Next riddle')}</button>`)
       : `${moreHints ? `<button class="q-hint">${t('Hint')} <small>−1</small></button>` : ''}
-         ${s.layer ? `<button class="q-layer">${t('Open the layer')}</button>` : s.mode ? `<button class="q-mode">${t('Colour the map for it')}</button>` : ''}
+         ${s.layer ? `<button class="q-layer">${t('Open the layer')}</button>` : ''}${s.mode ? `<button class="q-mode">${t(MODE_LABEL[s.mode])}</button>` : ''}
          ${s.answer.bags ? `<button class="q-reveal">${t('Show me')}</button>` : ''}
          <span class="q-worth">${tiles(stepTiles(), 3)}</span>`}</div>`;
   questEl.hidden = false;

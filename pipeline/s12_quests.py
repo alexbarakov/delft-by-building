@@ -66,8 +66,14 @@ def main():
                                      story_nl=note.get("story_nl"), name_nl=note.get("name_nl"))
                 x, y = np.mean([xy[k] for k in bags if k in xy], axis=0)
                 auto = direction_hint(x, y)
+                said = " ".join([s["riddle"]["en"]] + [h["en"] for h in s["hints"]])
+                if "right by the Markt" in auto["en"] and "Markt" in said:
+                    step["hints"] = s["hints"]  # the riddle already places it on the Markt
                 # Hard quests open with the vaguer hint, the others end with it.
-                step["hints"] = [auto] + s["hints"] if q["level"] == 3 else s["hints"] + [auto]
+                elif q["level"] == 3:
+                    step["hints"] = [auto] + s["hints"]
+                else:
+                    step["hints"] = s["hints"] + [auto]
                 if s.get("photo"):
                     photo = next((wiki[wk[k]]["image"] for k in bags if k in wk.index and wiki[wk[k]].get("image")), None)
                     if not photo:

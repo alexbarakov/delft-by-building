@@ -55,8 +55,7 @@ QUESTS = [
                  "is the second highest church tower in the Netherlands.",
                  "Tegenover het stadhuis staat de grafkerk van het Huis van Oranje. De toren is de op een na "
                  "hoogste kerktoren van Nederland."),
-               T("Colour by floors: it is the tallest thing in the old town.",
-                 "Kleur naar verdiepingen: het is het hoogste van de binnenstad."), mode="floors"),
+               T("The Nieuwe Kerk.", "De Nieuwe Kerk.")),
          ]),
     dict(id="vermeer", level=1,
          title=T("In Vermeer's footsteps", "In de voetsporen van Vermeer"),
@@ -64,10 +63,10 @@ QUESTS = [
                  "Vijf plekken uit het leven van Johannes Vermeer, van zijn geboorte tot zijn graf."),
          steps=[
              S("vermeer", "Voldersgracht 25",
-               T("Begin where he began. In 1632 a boy was born at an inn named after a flying animal, on the "
-                 "canal of the cloth fullers. Find the inn.",
-                 "Begin waar hij begon. In 1632 werd een jongen geboren in een herberg die naar een vliegend dier "
-                 "heette, aan de gracht van de lakenvolders. Vind de herberg."),
+               T("Begin where he began. In 1632 he was born at an inn his father ran, named after a flying animal, "
+                 "on a canal just north of the Markt. Find the inn.",
+                 "Begin waar hij begon. In 1632 werd hij geboren in de herberg van zijn vader, die naar een "
+                 "vliegend dier heette, aan een gracht net ten noorden van de Markt. Vind de herberg."),
                T("The canal is the Voldersgracht; the inn is named after a fox with wings.",
                  "De gracht is de Voldersgracht; de herberg heet naar een vos met vleugels."), photo=True),
              S("vermeer", "Voldersgracht 21",
@@ -83,22 +82,21 @@ QUESTS = [
                T("He was baptised on 31 October 1632 in the church whose tower is the second highest in the "
                  "Netherlands.",
                  "Hij werd op 31 oktober 1632 gedoopt in de kerk met de op een na hoogste kerktoren van Nederland."),
-               T("Colour by floors: it is the tallest thing in the old town.",
-                 "Kleur naar verdiepingen: het is het hoogste van de binnenstad."), mode="floors"),
+               T("It faces the town hall across the Markt.", "Hij staat tegenover het stadhuis aan de Markt.")),
              S("vermeer", "Vlamingstraat 42",
                T("In 2015 a historian identified the spot of his painting The Little Street: the house where his "
                  "aunt lived and sold tripe. Find it.",
                  "In 2015 vond een historicus de plek van zijn schilderij Het straatje: het huis waar zijn tante "
                  "woonde en pens verkocht. Vind het."),
-               T("The street is named after Flemish weavers: the Vlamingstraat.",
-                 "De straat heet naar Vlaamse wevers: de Vlamingstraat.")),
+               T("The street is the Vlamingstraat.", "De straat is de Vlamingstraat.")),
              S("vermeer", "Heilige Geestkerkhof 25",
                T("He died in December 1675 and was buried in the oldest church of the town, the one whose tower "
                  "leans.",
                  "Hij stierf in december 1675 en werd begraven in de oudste kerk van de stad, die met de scheve "
                  "toren."),
-               T("The tower stands 1.96 metres out of plumb, by the Oude Delft.",
-                 "De toren staat 1,96 meter uit het lood, aan de Oude Delft."), photo=True),
+               T("Colour by floors: its leaning tower makes it the tallest building of the old town on this map.",
+                 "Kleur naar verdiepingen: door de scheve toren is het op deze kaart het hoogste gebouw van de "
+                 "binnenstad."), photo=True, mode="floors"),
          ]),
     dict(id="orange", level=1,
          title=T("Father of the fatherland", "Vader des vaderlands"),
@@ -133,7 +131,7 @@ QUESTS = [
              S("orange", "Heilige Geestkerkhof 25",
                T("On 24 April 2004, his birthday, a prince of the House of Orange married in the other great church of Delft.",
                  "Op 24 april 2004, zijn verjaardag, trouwde een prins uit het Huis van Oranje in de andere grote kerk van Delft."),
-               T("The church with the leaning tower.", "De kerk met de scheve toren.")),
+               T("The church with the leaning tower, the Oude Kerk.", "De kerk met de scheve toren, de Oude Kerk.")),
          ]),
     # ---------- medium ----------
     dict(id="delftblue", level=2,
@@ -160,10 +158,10 @@ QUESTS = [
                  "Rotterdam, waar nog steeds Delfts blauw wordt gemaakt."),
                T("The Rotterdamseweg.", "De Rotterdamseweg.")),
              S("delftblue", "Wateringseweg 1",
-               T("A head office of 1905 has its hall walls covered in tile tableaux from that pottery. The "
-                 "factory it ran made yeast.",
-                 "Een hoofdkantoor uit 1905 heeft hallen vol tegeltableaus van die fabriek. De fabriek waar het "
-                 "bij hoorde maakte gist."),
+               T("The walls of a head office of 1905 carry tile patterns and tableaux from that pottery. The "
+                 "company it housed made yeast.",
+                 "De wanden van een hoofdkantoor uit 1905 dragen tegels en tegeltableaus van die fabriek. Het "
+                 "bedrijf dat er zat maakte gist."),
                T("The Gist en Spiritusfabriek, on the Wateringseweg.", "De Gist- en Spiritusfabriek, aan de Wateringseweg.")),
              S("delftblue", "Koornmarkt 81",
                T("A brewery house of about 1550 became miniature number 32 in the row of Delft Blue houses that "
@@ -242,8 +240,8 @@ QUESTS = [
                  "back to Paris.",
                  "In 1811 bezocht Napoleon het arsenaal van de Staten van Holland en nam twee versierde kanonnen "
                  "mee naar Parijs."),
-               T("Its Latin name means armoury; it stands on the Korte Geer.",
-                 "De Latijnse naam betekent wapenhuis; het staat aan de Korte Geer.")),
+               T("Its name is Latin for arsenal: the Armamentarium, on the Korte Geer.",
+                 "De naam is Latijn voor wapenhuis: het Armamentarium, aan de Korte Geer.")),
          ]),
     dict(id="science", level=2,
          title=T("Engineers' town", "Ingenieursstad"),
@@ -269,8 +267,8 @@ QUESTS = [
              S("science", "Mekelweg 5",
                T("A concrete auditorium of 1966 juts out 34.5 metres and rests mainly on two columns.",
                  "Een betonnen zaal uit 1966 kraagt 34,5 meter uit en rust vooral op twee kolommen."),
-               T("The Aula, on the Mekelweg. Colour by period and look at the 1960s.",
-                 "De Aula, aan de Mekelweg. Kleur naar periode en kijk naar de jaren zestig."), mode="period"),
+               T("The Aula, on the Mekelweg. Colour by period: it falls in 1965–1984.",
+                 "De Aula, aan de Mekelweg. Kleur naar periode: hij valt in 1965–1984."), mode="period"),
              S("science", "Mekelweg 15",
                T("Since 1963 the only nuclear reactor on a Dutch university campus has run here.",
                  "Sinds 1963 draait hier de enige kernreactor op een Nederlandse universiteitscampus."),
@@ -279,8 +277,8 @@ QUESTS = [
     # ---------- hard ----------
     dict(id="students", level=3,
          title=T("Students and secrets", "Studenten en geheimen"),
-         intro=T("Clubs, hidden marks and a forger. Fewer clues: the hints name only the street.",
-                 "Clubs, verborgen tekens en een vervalser. Minder aanwijzingen: de hints noemen alleen de straat."),
+         intro=T("Student clubs, a hidden mark and a forger. The first hint only gives a direction.",
+                 "Studentenclubs, een verborgen teken en een vervalser. De eerste hint geeft alleen een richting."),
          steps=[
              S("students", "Oude Delft 35",
                T("Students have lived here since 1891: it is the oldest student house still in use in the Netherlands.",
@@ -311,8 +309,8 @@ QUESTS = [
          ]),
     dict(id="charity", level=3,
          title=T("Hidden faith, quiet charity", "Verborgen geloof, stille liefdadigheid"),
-         intro=T("Shelters, orphanages and churches you cannot see from the street.",
-                 "Opvang, weeshuizen en kerken die je vanaf de straat niet ziet."),
+         intro=T("A shelter, an almshouse, an orphanage and two houses of prayer, one of them hidden from the street.",
+                 "Een opvang, een hofje, een weeshuis en twee gebedshuizen, waarvan één verborgen voor de straat."),
          steps=[
              S("charity", "Molslaan 104",
                T("Built around 1465 as a shelter for the homeless, it survived the fire of 1536 and became a "
@@ -374,10 +372,10 @@ QUESTS = [
                            "Open Beschermd erfgoed en laat alleen de rijksmonumenten zien; de jongste staan rechts "
                            "op de tijdlijn.")]),
              dict(answer=("rule", dict(groups=[("heritage", "waardevol")], before=1700)), layer="heritage",
-                  riddle=T("A few buildings older than 1700 are not listed at all; the city only counts them as "
-                           "worth keeping. Find one.",
-                           "Een paar gebouwen van voor 1700 zijn helemaal geen monument; de gemeente noemt ze "
-                           "alleen waardevol. Vind er een."),
+                  riddle=T("A few buildings older than 1700 are not listed at all; only the city's design rules count "
+                           "them as worth keeping. Find one.",
+                           "Een paar gebouwen van voor 1700 zijn helemaal geen monument; alleen de welstandsregels van "
+                           "de gemeente noemen ze waardevol. Vind er een."),
                   hints=[T("In Protected heritage keep only 'Valued by the city', then look for the oldest.",
                            "Laat in Beschermd erfgoed alleen 'Cultuurhistorisch waardevol' zien en zoek de oudste.")]),
          ]),

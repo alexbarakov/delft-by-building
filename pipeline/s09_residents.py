@@ -16,7 +16,7 @@ import geopandas as gpd
 import requests
 from shapely.geometry import Point
 
-from .city import UA, WIKIDATA
+from .city import NAME, UA, WIKIDATA
 from .geo import lookup, streets as all_streets
 VERBS = re.compile(r"\b(woonde|woonden|woont|bewoonde|verhuisde|betrok|vestigde|kocht|overleed|stierf|geboren|"
                    r"atelier|werkte|huis aan|woning aan|woonhuis|pand aan|leefde|groeide op|woonachtig|"
@@ -116,6 +116,9 @@ def wikitexts(titles):
     return texts
 
 
+# Institutions whose Wikidata item sits on a newer building than the one a biography means (the Oude Gasthuis on the Koornmarkt).
+REJECTED = []
+MOVED = {"Reinier de Graaf Gasthuis"}
 BUILDING_ARTICLES = {}  # nl Wikipedia title → BAG ids of the building the article is about (Wikidata P5208)
 
 
@@ -173,6 +176,8 @@ def residents_by_wikidata():
     out = []
     for x in r.json()["results"]["bindings"]:
         v = {k: y["value"] for k, y in x.items()}
+        if re.fullmatch(r"Q\d+", v["personLabel"]):  # no name in English or Dutch
+            continue
         for bag in places[v["b"]]["bags"]:
             out.append(dict(v, bag=bag, desc=v.get("desc", ""), born=v.get("born", ""), died=v.get("died", ""), img=v.get("img", "")))
     return out
@@ -181,6 +186,7 @@ def residents_by_wikidata():
 def main():
     building_articles()
     ppl = people()
+    tied = {p["p"] for p in ppl}
     labels = json.load(open("web/data/labels.json"))
     # Streets worth a search: the named canals and main streets, and every street within 2.5 km of the Dam.
     near = sorted({l["name"] for l in labels if len(l["name"]) > 4 and
@@ -212,15 +218,28 @@ def main():
                 continue
             quote = re.sub(r"⟦[^⟧]*⟧", "", sentence).strip()[:400]
             # a church named in a sentence about a burial is where they lie, not where they lived
-            buried = re.search(r"\b(begraven|bijgezet|begraafplaats|graf|grafkelder)\b", sentence, re.I)
+            # ... and one named for a wedding, a baptism or as a landmark nearby is not a home either
+            buried = re.search(r"\b(begraven|bijgezet|begraafplaats|graf|grafkelder|trouwde|huwelijk|gedoopt|"
+                               r"nabij|naast|tegenover|bij de)\b", sentence, re.I)
             for t in ([] if buried else re.findall(r"⟦([^⟧]*)⟧", sentence)):
+                if t in MOVED:
+                    continue
                 for bag in BUILDING_ARTICLES[t]:
                     if ("article", bag) not in seen:
                         seen.add(("article", bag))
                         found.append(dict(bag=bag, address=t, person=p["pLabel"], wikidata=p["p"], url=p["article"],
                                           desc=p.get("desc"), born=(p.get("born") or "")[:4], died=(p.get("died") or "")[:4],
                                           img=p.get("img"), links=int(p["links"]), quote=quote))
-            for m in re.finditer(addr_re, re.sub(r"⟦[^⟧]*⟧", "", sentence)):
+            # Street names repeat across the country: an address counts only in a sentence that names no other town,
+            # and, unless it names the city itself, only for people Wikidata ties to the city or whose article keeps
+            # coming back to it.
+            plain = re.sub(r"⟦[^⟧]*⟧", "", sentence)
+            towns = {t for t in re.findall(r"\b(?:in|te|naar|uit|bij)\s+((?:Den |'s-)?[A-Z][a-zë]+(?:[- ][A-Z][a-z]+)?)", plain)}
+            if towns - {NAME} or (NAME not in plain and p["p"] not in tied and text.count(NAME) < 3):
+                if re.search(addr_re, plain):
+                    REJECTED.append((p["pLabel"], sorted(towns - {NAME}), p["p"] in tied, plain[:160]))
+                continue
+            for m in re.finditer(addr_re, plain):
                 address = f"{m.group(1)} {m.group(2)}"
                 if address in seen:
                     continue
@@ -244,6 +263,7 @@ def main():
     for f in found:  # one entry per person and building; Wikipedia quotes come first, so they win
         uniq.setdefault((f["bag"], f["person"]), f)
     found = sorted(uniq.values(), key=lambda f: -f["links"])
+    Path("data/residents_rejected.json").write_text(json.dumps(REJECTED, ensure_ascii=False, indent=1))
     Path("data/residents.json").write_text(json.dumps(found, ensure_ascii=False, indent=1))
     print(len(found), "addresses;", len({f["person"] for f in found}), "people;", len({f["bag"] for f in found}), "buildings")
 

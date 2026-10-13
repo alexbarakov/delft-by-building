@@ -9,6 +9,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import shapely
+import shapely.geometry
 
 RAW = Path("data/raw")
 
@@ -17,6 +18,7 @@ def main():
     addr = {a["identificatie"]: a for a in json.load(open(RAW / "addresses.json"))}
     p = gpd.read_parquet("data/panden.parquet", columns=["identificatie", "geometry"])
     p["bag"] = p.identificatie.str.slice(-16)
+    p["geometry"] = shapely.make_valid(p.geometry.values)
     known = set(p.bag)
     by_vbo, addresses = defaultdict(set), defaultdict(list)
     for r in csv.DictReader(open(RAW / "rce_bag.csv")):
@@ -39,6 +41,22 @@ def main():
             ps = set(hits.bag[share >= 0.5])
         if ps:
             by_geom[r["nr"]] = ps
+    # The city's own monument map (Gemeente Delft, CC BY 4.0): an outline per monument, national and municipal.
+    city, municipal = {}, {}
+    for ft in json.load(open(RAW / "layers/delft_monuments.geojson"))["features"]:
+        pr, g = ft["properties"], shapely.geometry.shape(ft["geometry"]) if ft["geometry"] else None
+        if g is None or pr.get("BRUG") == "ja":
+            continue
+        g = shapely.make_valid(g)
+        hits = p.iloc[sidx.query(g, predicate="intersects")]
+        share = hits.geometry.intersection(g).area / hits.geometry.area
+        ps = set(hits.bag[share >= 0.5])
+        if not ps:
+            continue
+        if pr["TYPE"] == "Rijks" and pr.get("NUMMER", "").strip().isdigit():
+            city.setdefault(pr["NUMMER"].strip(), set()).update(ps)
+        elif pr["TYPE"] == "Gemeente":
+            municipal[pr["MON_ID"]] = (pr["OBJECTNAAM"].strip(), ps)
     names = {r["nr"]: r["label"] for r in csv.DictReader(open(RAW / "wd_monuments.csv")) if r["label"]}
     arch = defaultdict(set)
     for r in csv.DictReader(open(RAW / "wd_monuments.csv")):
@@ -47,15 +65,18 @@ def main():
     func = defaultdict(list)
     for r in csv.DictReader(open(RAW / "rce_functions.csv")):
         func[r["nr"]].append(r["function"])
-    nrs = sorted(set(by_vbo) | set(by_geom), key=int)
+    nrs = sorted(set(by_vbo) | set(by_geom) | set(city), key=int)
     out = [dict(nr=int(nr), status="Rijksmonument", type="Rijksmonument", name=names.get(nr, ""),
                 address=sorted(set(addresses[nr]))[0] if addresses[nr] else "",
                 architect=", ".join(sorted(arch[nr])), function=", ".join(func[nr]),
-                panden=sorted(by_vbo.get(nr) or by_geom[nr])) for nr in nrs]
+                panden=sorted(by_vbo.get(nr, set()) | city.get(nr, set()) or by_geom.get(nr, set()))) for nr in nrs]
+    out += [dict(nr=f"g{k}", status="Gemeentelijk monument", type="Gemeentelijk monument", name="", address=name,
+                 architect="", function="", panden=sorted(ps)) for k, (name, ps) in municipal.items()]
     (RAW / "layers").mkdir(exist_ok=True)
     (RAW / "layers/monuments.json").write_text(json.dumps(out, ensure_ascii=False))
     total = len({r["nr"] for r in csv.DictReader(open(RAW / "rce_geom.csv"))})
-    print(f"{len(out)} of {total} monuments linked: {len(by_vbo)} by address, {len(by_geom)} by outline; "
+    print(f"{len(nrs)} of {total} national monuments linked: {len(by_vbo)} by address, {len(city)} by the city's outlines, "
+          f"{len(by_geom)} by RCE outline; {len(municipal)} municipal monuments; "
           f"{len({b for m in out for b in m['panden']})} panden")
 
 

@@ -310,3 +310,12 @@ NL = {
     "Wikidata, Wikipedia and OpenStreetMap": "Wikidata, Wikipedia en OpenStreetMap",
     "Mural": "Muurschildering", "Graffiti and street art": "Graffiti en straatkunst",
 }
+
+# Delft: the texts of the Delft layers, translated in one pass and kept as JSON next to this file.
+import json as _json
+from pathlib import Path as _Path
+NL.update(_json.loads((_Path(__file__).parent / "i18n_nl_delft.json").read_text()))
+NL.update({
+    "Art and craft": "Kunst en ambacht", "House of Orange": "Huis van Oranje", "Science and learning": "Wetenschap en onderwijs",
+    "Trade and industry": "Handel en industrie", "War and disaster": "Oorlog en rampen",
+})

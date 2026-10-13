@@ -644,18 +644,21 @@ const totals = periods.map(() => 0);
 for (const v of Object.values(config.histogram)) v.forEach((n, i) => totals[i] += n);
 const fmt = n => n.toLocaleString(fmtLocale());
 let activeLayer = null;
-const SECTION_ORDER = ['Discover', 'Architecture', 'Trade and empire', 'Faith and community', 'Countries and communities',
-  'The modern city', 'War and occupation'];
+const SECTION_ORDER = ['Discover', 'Art and craft', 'House of Orange', 'Science and learning', 'Trade and industry',
+  'Faith and community', 'War and disaster', 'Architecture'];
 const groupOn = {};
 let maskTarget = periods.map(() => 1);
 
 const ICON = {
   'Discover': '<circle cx="8" cy="8" r="6.2"/><path d="M10.6 5.4 9 9 5.4 10.6 7 7z"/>',
   'Architecture': '<path d="M3 14.5V7l5-4.5L13 7v7.5z"/><path d="M6.5 14.5v-4h3v4"/>',
-  'Trade and empire': '<path d="M2 11h12l-1.8 3H3.8z"/><path d="M8 2v9M8 3l4.5 6H8"/>',
+  'House of Orange': '<path d="M2.5 12.5 2 5l3.2 3L8 3.5 10.8 8 14 5l-.5 7.5z"/><path d="M2.5 14.5h11"/>',
+  'Art and craft': '<path d="M6 1.5h4M6.6 1.5v2.6C4.2 5.5 3.6 8 4 10.5c.4 2.4 1.9 4 4 4s3.6-1.6 4-4c.4-2.5-.2-5-2.6-6.4V1.5"/><path d="M5.2 8.5c1.8.8 3.8.8 5.6 0"/>',
+  'Science and learning': '<path d="M6 1.5h4M6.8 1.5v4.5L3 13.2c-.4.7.1 1.3.9 1.3h8.2c.8 0 1.3-.6.9-1.3L9.2 6V1.5"/><path d="M4.6 10.5h6.8"/>',
+  'Trade and industry': '<path d="M2 11h12l-1.8 3H3.8z"/><path d="M8 2v9M8 3l4.5 6H8"/>',
   'Faith and community': '<path d="M8 1.5v4M6.2 3.3h3.6"/><path d="M4 14.5V8.5L8 5.5l4 3v6z"/><path d="M7 14.5v-3h2v3"/>',
   'The modern city': '<rect x="2.5" y="5" width="5" height="9.5"/><rect x="8.5" y="2" width="5" height="12.5"/><path d="M4.5 7.5h1M4.5 10h1M10.5 4.5h1M10.5 7h1M10.5 9.5h1"/>',
-  'War and occupation': '<path d="M8 1.8 13 4v4c0 3.2-2.2 5.3-5 6.3-2.8-1-5-3.1-5-6.3V4z"/>',
+  'War and disaster': '<path d="M8 1.8 13 4v4c0 3.2-2.2 5.3-5 6.3-2.8-1-5-3.1-5-6.3V4z"/>',
 };
 const sectionIcon = sec => `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${ICON[sec] || ''}</svg>`;
 

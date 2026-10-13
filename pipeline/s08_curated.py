@@ -58,6 +58,8 @@ def main():
             # An article about the building itself names its BAG ids in Wikidata: trust those over the
             # geocoder, which can land on a neighbouring part of a large complex (the Palace, the Scheepvaarthuis).
             own = wikidata_bags().get(url)
+            # ... unless the item stands for a whole complex (a garden village of 170 houses): then the address decides.
+            own = own if own and len(own) <= 20 else None
             bags, found = (sorted(own), "wikidata") if own else ((lambda b, f: ([b] if b else [], f))(*geocode(address)))
             if missing or not bags:
                 dropped.append((L["id"], name, missing, found))

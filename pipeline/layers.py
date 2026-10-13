@@ -107,14 +107,50 @@ TO_RD = Transformer.from_crs(4326, 28992, always_xy=True)
 
 # ---------- layers ----------
 
+@cache
+def rce_functions() -> dict[str, set[str]]:
+    out = {}
+    for r in csv.DictReader(open("data/raw/rce_functions.csv")):
+        out.setdefault(r["nr"], set()).add(re.sub(r"\s*\(.*$", "", r["function"]).strip())
+    return out
+
+
+@layer(
+    id="gables", section="Architecture", title="Gables", era="1400–1900",
+    text=("Most listed houses in Delft face the street with a flat cornice, many of them put up in the 1700s and "
+          "1800s. The older tops are rarer: pointed and spout gables from the wooden-house tradition, stepped gables "
+          "of the 1500s and 1600s, and a handful of bell gables."),
+    caveat="Listed houses only: the register of national monuments names the gable of each.",
+    source=("Rijksmonumentenregister, RCE", "https://monumentenregister.cultureelerfgoed.nl"),
+    groups=[("trap", "Stepped gable"), ("punt", "Pointed or spout gable"), ("klok", "Bell or neck gable"),
+            ("lijst", "Cornice")],
+)
+def gables():
+    pats = [("trap", r"trapgevel"), ("punt", r"puntgevel|tuitgevel"), ("klok", r"klokgevel|halsgevel"),
+            ("lijst", r"rechte lijst|lijstgevel|verhoogde lijst")]
+    keyed = {}
+    for nr, t in rce_texts().items():
+        t = t.lower()
+        hits = [(m.start(), k) for k, p in pats for m in [re.search(p, t)] if m]
+        if hits:
+            keyed[nr] = min(hits)[1]  # the first gable named is the house's own
+    return by_monument(keyed)
+
+
 @layer(
     id="heritage", section="Architecture", title="Protected heritage", era="All periods",
-    text=("Delft has some 700 national monuments, most of them in the old town inside the canals."),
-    source=("Rijksdienst voor het Cultureel Erfgoed, monument register", "https://monumentenregister.cultureelerfgoed.nl"),
-    groups=[("Rijksmonument", "National monument")],
+    text=("Listed buildings: by the State for national significance, or by the city for local value. Most stand "
+          "in the old town inside the canals."),
+    source=("Gemeente Delft, monuments", "https://data.delft.nl/datasets/monumenten-1"),
+    groups=[("Rijksmonument", "National monument"), ("Gemeentelijk monument", "Municipal monument")],
 )
 def heritage():
-    return {p: "Rijksmonument" for m in monuments() for p in m["panden"]}
+    out = {}
+    for m in monuments():
+        for p in m["panden"]:
+            if m["status"] == "Rijksmonument" or p not in out:
+                out[p] = m["status"]
+    return out
 
 
 def _curated_layer(L):

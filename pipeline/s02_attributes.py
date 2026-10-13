@@ -15,13 +15,15 @@ import hashlib
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 from scipy.spatial import cKDTree
 
 from .monuments import load as load_monuments
 from .periods import period_index
 
 PLACEHOLDER = 1005
-FLAG_EXACT, FLAG_FAINT, FLAG_ESTIMATED, FLAG_MONUMENT, FLAG_MONUMENT_APPROX, FLAG_WIKIDATA = 0, 1, 2, 3, 4, 5
+FLAG_EXACT, FLAG_FAINT, FLAG_ESTIMATED, FLAG_MONUMENT, FLAG_MONUMENT_APPROX, FLAG_WIKIDATA, FLAG_1832 = 0, 1, 2, 3, 4, 5, 6
+COVER_1832 = 0.6  # share of today's footprint that a building of the 1832 cadastre must cover
 LATER_MARGIN = 10
 SUSPECT_YEARS = ()
 from .city import ORIGIN as DAM, ROUND_UNTIL
@@ -127,6 +129,28 @@ def estimate_placeholders(p: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return p
 
 
+def flag_1832(p: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """A building BAG dates after 1832 that stands on the footprint of a building in the 1832 cadastre may be older
+    than BAG says (BAG often records a rebuilding), or may have replaced it on the same plot. The year stays;
+    the building is drawn paler and its card says so. Only exact BAG years are flagged."""
+    old = gpd.read_file("data/raw/layers/gebouwen_1832.geojson").set_crs(28992, allow_override=True)
+    old["geometry"] = old.geometry.make_valid()
+    geom = p.geometry.make_valid()
+    cand = np.where((p.year.values > 1832) & (p.date_flag.values == FLAG_EXACT))[0]
+    j = gpd.sjoin(gpd.GeoDataFrame(geometry=geom.iloc[cand].values, index=cand, crs=28992), old[["geometry"]],
+                  predicate="intersects")
+    hit = []
+    for i, grp in j.groupby(level=0):
+        g = geom.iat[i]
+        covered = shapely.union_all(old.geometry.iloc[grp.index_right].values).intersection(g).area
+        if covered >= COVER_1832 * g.area:
+            hit.append(i)
+    p.iloc[hit, p.columns.get_loc("date_flag")] = FLAG_1832
+    yrs = p.year.iloc[hit]
+    print(f"1832 footprints: {len(hit)} buildings dated after 1832 stand on one ({(yrs <= 1900).sum()} up to 1900)")
+    return p
+
+
 def main():
     p = gpd.read_parquet("data/panden.parquet")
     q = gpd.read_parquet("data/parts.parquet")
@@ -134,6 +158,7 @@ def main():
     p["year"] = p.oorspronkelijkbouwjaar.astype(int)
     p["date_flag"] = np.where(p.year == PLACEHOLDER, FLAG_ESTIMATED, FLAG_EXACT).astype(np.uint8)
     p = apply_monuments(p)
+    p = flag_1832(p)
     p = flag_suspect_years(p)
     p = smooth_round_years(p)
     p = estimate_placeholders(p)

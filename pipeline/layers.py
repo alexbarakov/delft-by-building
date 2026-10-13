@@ -139,10 +139,11 @@ def gables():
 
 @layer(
     id="heritage", section="Architecture", title="Protected heritage", era="All periods",
-    text=("Listed buildings: by the State for national significance, or by the city for local value. Most stand "
-          "in the old town inside the canals."),
+    text=("Listed buildings, by the State for national significance or by the city for local value, and some 1,500 "
+          "more that the city's design rules count as worth keeping. Most stand in the old town inside the canals."),
     source=("Gemeente Delft, monuments", "https://data.delft.nl/datasets/monumenten-1"),
-    groups=[("Rijksmonument", "National monument"), ("Gemeentelijk monument", "Municipal monument")],
+    groups=[("Rijksmonument", "National monument"), ("Gemeentelijk monument", "Municipal monument"),
+            ("waardevol", "Valued by the city, not listed")],
 )
 def heritage():
     out = {}
@@ -150,6 +151,13 @@ def heritage():
         for p in m["panden"]:
             if m["status"] == "Rijksmonument" or p not in out:
                 out[p] = m["status"]
+    # Buildings the city's design rules count as of cultural-historical value (Welstand), unlisted
+    v = gpd.read_file(f"{RAW}/waardevolle_panden.geojson").set_crs(28992, allow_override=True)
+    b = buildings()
+    j = gpd.sjoin(gpd.GeoDataFrame({"bag": b.bag}, geometry=b.geometry.representative_point(), crs=28992),
+                  v[["geometry"]], predicate="within")
+    for p in j.bag:
+        out.setdefault(p, "waardevol")
     return out
 
 
@@ -189,3 +197,76 @@ if os.path.exists("data/residents.json"):
                 "changed, and some houses were rebuilt since."),
         source=("Dutch Wikipedia, via Wikidata", "https://nl.wikipedia.org"),
         groups=[("res", "Home of a well-known resident")], source_fn=_residents))
+
+
+# ---------- the first cadastre, 1832 ----------
+# Owners and their trades from the 1832 land register (Erfgoed Delft open data, OAT Kadaster 1832), joined by parcel
+# code to the city's map of the 1832 parcels; a building today belongs to the parcel its centre falls in.
+TRADES = [
+    ("potter", "Delftware potters", {"plateelbakker": "Delftware potter", "platheelbakker": "Delftware potter",
+                                     "plateelbakkersknecht": "Delftware potter's hand"}),
+    ("drink", "Inns, taverns and distillers", {"tapper": "tavern keeper", "tapster": "tavern keeper",
+        "kastelein": "innkeeper", "herbergier": "innkeeper", "logementhouder": "lodging-house keeper",
+        "logementhoudster": "lodging-house keeper", "slijter": "liquor seller", "brander": "distiller",
+        "likeurstoker": "liqueur distiller", "azijnmaker": "vinegar maker"}),
+    ("food", "Bakers, butchers and grocers", {"broodbakker": "baker", "koekbakker": "cake baker",
+        "vleeshouwer": "butcher", "spekslager": "pork butcher", "grutter": "grocer", "boterkoopster": "butter seller",
+        "turfverkoopster": "peat seller"}),
+    ("trade", "Merchants and shopkeepers", {"koopman": "merchant", "koopvrouw": "merchant", "winkelier": "shopkeeper",
+        "winkelierster": "shopkeeper", "houtkoper": "timber merchant", "ijzerkoper": "ironmonger",
+        "korenkoper": "corn merchant", "tabakskoper": "tobacco merchant", "drogist": "druggist", "apotheker": "apothecary",
+        "uitdrager": "second-hand dealer", "lakenfabrikant": "cloth manufacturer"}),
+    ("craft", "Craftsmen", {"timmerman": "carpenter", "metselaar": "bricklayer", "smid": "smith",
+        "schoenmaker": "shoemaker", "kleermaker": "tailor", "verver": "dyer", "koperslager": "coppersmith",
+        "blikslager": "tinsmith", "kuiper": "cooper", "zadelmaker": "saddler", "mandenmaker": "basket maker",
+        "looier": "tanner", "leerlooier": "tanner", "zeepzieder": "soap boiler", "kaarsenmaker": "candle maker",
+        "bezemmaker": "broom maker", "wagenmaker": "wheelwright", "draaier": "turner", "scheepsmaker": "shipwright"}),
+]
+PROPERTY_EN = {"huis en erf": "house and yard", "huis": "house", "huis, schuur en erf": "house, barn and yard",
+               "pakhuis": "warehouse", "pakhuis en erf": "warehouse and yard", "huis, erf en schuur": "house, yard and barn",
+               "schuur": "barn", "schuur en erf": "barn and yard", "stal": "stable", "stal en erf": "stable and yard",
+               "werkplaats": "workshop", "huis, gebouw en erf": "house, building and yard", "tuinhuis": "garden house"}
+TRADE_OF = {nl: (key, en) for key, _, d in TRADES for nl, en in d.items()}
+
+
+@cache
+def cadastre_1832():
+    """pand → (group, note) for buildings on a built parcel of 1832 whose owner the register names."""
+    owners = {}
+    for r in csv.DictReader(open("data/raw/kadaster_1832.csv", encoding="utf-8", errors="ignore"), delimiter=";"):
+        kind = r["VVPA_SOORT EIGENDOM"].strip().lower()
+        if kind not in PROPERTY_EN or r["PLPA_KADASTRALE GEMEENTE"] != "Delft":
+            continue
+        name = " ".join(x for x in (r["PPA_VOORNAAM"], r["PPA_TUSSENVOEGSEL"], r["PPA_ACHTERNAAM"]) if x.strip())
+        owners.setdefault(r["AK_KOPPELVELD"], []).append((name, r["PPA_BEROEP"].strip().lower(), kind, r["AK_PID"]))
+    plots = gpd.read_file(f"{RAW}/percelen_1832.geojson").set_crs(28992, allow_override=True)
+    plots = plots[plots.KOPPELNR.isin(owners)]
+    b = buildings()
+    pts = gpd.GeoDataFrame({"bag": b.bag}, geometry=b.geometry.representative_point(), crs=28992)
+    j = gpd.sjoin(pts, plots[["KOPPELNR", "SECTIELETT", "PERCNR", "geometry"]], predicate="within")
+    out = {}
+    for bag, code, sec, nr in zip(j.bag, j.KOPPELNR, j.SECTIELETT, j.PERCNR):
+        name, trade, kind, pid = owners[code][0]
+        key, trade_en = TRADE_OF.get(trade, ("other", None))
+        who_en = f"{name}, {trade_en}" if trade_en else (f"{name} ({trade})" if trade else name)
+        who_nl = f"{name}, {trade}" if trade else name
+        more = len({o[0] for o in owners[code]}) - 1
+        story = f"In the land register of 1832 parcel {sec} {nr}, {PROPERTY_EN[kind]}, belonged to {who_en}."
+        story_nl = f"In het kadaster van 1832 was perceel {sec} {nr}, {kind}, van {who_nl}."
+        if more:
+            story += f" {more} more owner{'s' if more > 1 else ''} share{'' if more > 1 else 's'} the entry."
+            story_nl += f" Nog {more} eigena{'ren' if more > 1 else 'ar'} op dezelfde regel."
+        out[bag] = (key, {"story": story, "story_nl": story_nl, "source": pid})
+    return out
+
+
+LAYERS.append(dict(
+    id="kadaster1832", section="Discover", title="Delft in 1832", era="1832",
+    text=("The first national land register, drawn up in 1832, names the owner of every plot and often their trade. "
+          "Each building today shows who owned the plot it stands on: potters, innkeepers, bakers, merchants and "
+          "craftsmen among them."),
+    caveat=("A building belongs to the 1832 plot its centre stands on; the house itself may have been rebuilt since. "
+            "Old town only, where the 1832 parcels are mapped."),
+    source=("Erfgoed Delft, Kadaster 1832; Gemeente Delft, percelen 1832", "https://erfgoeddelft.nl/stadsarchief/open-data"),
+    groups=[(k, label) for k, label, _ in TRADES] + [("other", "Other owners")],
+    source_fn=cadastre_1832))

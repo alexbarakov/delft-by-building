@@ -127,6 +127,15 @@ def main():
             for n in nums:
                 jobs.append((f"{m.group(1)} {n}", f, (3 if len(nums) == 1 else 1) - archive))
 
+    # Municipal monuments: Wiki Loves Monuments files carry {{Gemeentelijk monument|0503/<id>}} (harvested to
+    # data/raw/commons_gm.json); a street view of the house beats an interior.
+    gm = Path("data/raw/commons_gm.json")
+    if gm.exists():
+        for mid, titles in json.loads(gm.read_text()).items():
+            for t in sorted(titles, key=lambda t: bool(re.search(r"interieur|interior|detail", t, re.I))):
+                for p in mon_panden.get(f"g{mid}", ()):
+                    candidates.append((p, 2 if not re.search(r"interieur|interior|detail", t, re.I) else 0, {"title": t}))
+                break
     print(len(jobs), "address mentions")
     uniq = sorted({a for a, _, _ in jobs})
     with ThreadPoolExecutor(8) as ex:

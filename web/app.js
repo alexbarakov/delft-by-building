@@ -54,6 +54,7 @@ const NL_UI = {
   'Year from the register of national monuments, which dates the building earlier than BAG does.': 'Jaartal uit het rijksmonumentenregister, dat het gebouw eerder dateert dan de BAG.',
   'Dated by the register of national monuments to a century or part of one; the map spreads it across that span.': 'Door het rijksmonumentenregister gedateerd op een eeuw of een deel daarvan; de kaart spreidt het over die periode.',
   'Year from Wikidata, which dates the building earlier than BAG does; the register of national monuments gives no date.': 'Jaartal uit Wikidata, dat het gebouw eerder dateert dan de BAG; het rijksmonumentenregister geeft geen datering.',
+  'A building already stood on this footprint in the 1832 land register. BAG’s year may record a rebuilding, or this house replaced the older one.': 'Op deze plek stond al een gebouw in het kadaster van 1832. Het jaartal van de BAG kan een verbouwing zijn, of dit huis verving het oudere.',
   'Before 1536': 'Vóór 1536', '1536–1653 After the great fire': '1536–1653 Na de stadsbrand',
   '1654–1799 After the thunderclap': '1654–1799 Na de Delftse donderslag', '1864–1913 Polytechnic and factories': '1864–1913 Polytechnische School en fabrieken',
 };
@@ -284,7 +285,7 @@ const VERT = /* glsl */`
     vec3 c;
     if (uMode < 0.5) {
       c = uPalette[period];
-      if (flag == 1 || flag == 2 || flag == 4) c = mix(c, uMaquette, 0.45);
+      if (flag == 1 || flag == 2 || flag == 4 || flag == 6) c = mix(c, uMaquette, 0.45);
     } else if (uMode < 1.5) {
       c = floorsRamp(mod(a.z, 128.0));
     } else if (uMode < 2.5) {
@@ -419,10 +420,11 @@ function pick(x, y) {
 const DATE_NOTE = [
   null,
   'The register gives a round year here, more often than neighbouring years predict. Read it as “around then”.',
-  'The register has no real year (placeholder 1005, or one of the surplus 1905s of the old centre). Estimated from the nearest dated buildings.',
+  'The register has no real year. Estimated from the nearest dated buildings.',
   'Year from the register of national monuments, which dates the building earlier than BAG does.',
   'Dated by the register of national monuments to a century or part of one; the map spreads it across that span.',
   'Year from Wikidata, which dates the building earlier than BAG does; the register of national monuments gives no date.',
+  'A building already stood on this footprint in the 1832 land register. BAG’s year may record a rebuilding, or this house replaced the older one.',
 ];
 const residentsLayer = layers.find(L => L.id === 'residents');
 const contextLayers = layers;

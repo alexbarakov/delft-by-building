@@ -232,27 +232,33 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .q-tiles i.on { background: var(--accent); }
 .q-level { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--accent); }
 
-/* The list: a wall of tiles. */
-.quests { width: min(860px, calc(100vw - 32px)); }
-.quests .q-lede { max-width: 60ch; }
-.quests .q-score { font-size: 13px; color: var(--muted); margin: 0; }
-.quests .q-score b { color: var(--accent); font-size: 18px; }
-.quests .q-grid { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
-.quests .q-tile { margin: 0; max-width: none; line-height: 1.4; }
-.q-tile { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 20px 20px 16px; background: #fbfcff;
-  border: 1px solid #c9d3ea; border-radius: 3px; outline: 1px solid #c9d3ea; outline-offset: -8px;
-  /* the painted corners of a Delft tile */
-  background-image: radial-gradient(circle at 0 0, var(--accent) 0 10px, transparent 11px),
-    radial-gradient(circle at 100% 0, var(--accent) 0 10px, transparent 11px),
-    radial-gradient(circle at 0 100%, var(--accent) 0 10px, transparent 11px),
-    radial-gradient(circle at 100% 100%, var(--accent) 0 10px, transparent 11px); }
-.q-tile h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: -0.01em; }
-.q-tile p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
-.q-tile footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-.q-tile .q-progress { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.q-tile.complete { background-color: #eef2fb; }
-.quests .q-start { border: 0; background: var(--accent); color: var(--paper); border-radius: 999px; padding: 6px 14px;
-  cursor: pointer; font-size: 12px; font-weight: 700; }
+/* The list: a wall of ten tiles that fits without scrolling. The deeper the blue, the harder the quest. */
+.quests { width: min(1000px, calc(100vw - 32px)); }
+.quests article { padding: 22px 26px 24px; }
+.quests h2 { margin: 0; }
+.quests .q-lede { max-width: 72ch; margin: 6px 0 0; font-size: 13px; line-height: 1.5; }
+.quests .q-score { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+.quests .q-score b { color: var(--accent); font-size: 17px; }
+.quests .q-grid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.quests .q-tile { margin: 0; max-width: none; line-height: 1.35; }
+.q-tile { --fill: .06; position: relative; display: flex; flex-direction: column; gap: 4px; padding: 15px 14px 12px;
+  border: 1px solid #c9d3ea; border-radius: 3px; outline: 1px solid #c9d3ea; outline-offset: -6px;
+  /* the painted corners of a Delft tile, over a wash as deep as the quest is hard */
+  background: radial-gradient(circle at 0 0, var(--accent) 0 8px, transparent 9px),
+    radial-gradient(circle at 100% 0, var(--accent) 0 8px, transparent 9px),
+    radial-gradient(circle at 0 100%, var(--accent) 0 8px, transparent 9px),
+    radial-gradient(circle at 100% 100%, var(--accent) 0 8px, transparent 9px),
+    rgb(31 63 154 / var(--fill)); }
+.q-tile.l2 { --fill: .16; }
+.q-tile.l3 { --fill: .3; }
+.q-tile h3 { margin: 2px 0 0; font-size: 14px; line-height: 1.25; letter-spacing: -0.01em; }
+.q-tile p { margin: 0; color: #4b5560; font-size: 12px; line-height: 1.4; flex: 1;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.q-tile footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 6px; }
+.q-tile .q-progress { font-size: 11px; color: #4b5560; font-variant-numeric: tabular-nums; }
+.q-tile.complete::after { content: "✓"; position: absolute; top: 9px; right: 12px; color: var(--accent); font-weight: 800; }
+.quests .q-start { border: 0; background: var(--accent); color: var(--paper); border-radius: 999px; padding: 4px 11px;
+  cursor: pointer; font-size: 11px; font-weight: 700; }
 .q-tile.complete .q-start { background: var(--paper); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
 
 /* The riddle card: stays in the corner while the map is used to find the answer. */
@@ -307,7 +313,13 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 @media (max-width: 720px) {
   .quest { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); max-height: 46vh; }
   .quest .q-photo { height: 110px; }
-  .quests .q-grid { grid-template-columns: 1fr; }
+  .quests .q-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quests article { padding: 18px 16px 18px; }
+  .quests .q-lede { display: none; }
+  .q-tile p { display: none; }
+  .q-tile { padding: 12px 11px 10px; }
   .modes .quests-open { order: -1; margin: 0 4px 0 0; }
 }
 @media (prefers-reduced-motion: reduce) { .quest .q-feedback.miss, .q-stamp { animation: none; } }
+
+@media (min-width: 721px) and (max-width: 960px) { .quests .q-grid { grid-template-columns: repeat(4, 1fr); } }

@@ -669,7 +669,7 @@ function renderQuestList() {
     <ul class="q-grid">${quests.map(q => {
       const st = p[q.id] || {}, done = Math.min(st.step || 0, q.steps.length), complete = done >= q.steps.length;
       const label = complete ? t('Play again') : done ? t('Continue') : t('Start');
-      return `<li class="q-tile${complete ? ' complete' : ''}">
+      return `<li class="q-tile l${q.level}${complete ? ' complete' : ''}">
         ${levelMark(q.level)}
         <h3>${esc(L10(q.title))}</h3>
         <p>${esc(L10(q.intro))}</p>

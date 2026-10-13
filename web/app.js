@@ -55,12 +55,15 @@ const NL_UI = {
   'Dated by the register of national monuments to a century or part of one; the map spreads it across that span.': 'Door het rijksmonumentenregister gedateerd op een eeuw of een deel daarvan; de kaart spreidt het over die periode.',
   'Year from Wikidata, which dates the building earlier than BAG does; the register of national monuments gives no date.': 'Jaartal uit Wikidata, dat het gebouw eerder dateert dan de BAG; het rijksmonumentenregister geeft geen datering.',
   'A building already stood on this footprint in the 1832 land register. BAG’s year may record a rebuilding, or this house replaced the older one.': 'Op deze plek stond al een gebouw in het kadaster van 1832. Het jaartal van de BAG kan een verbouwing zijn, of dit huis verving het oudere.',
-  'Quests': 'Speurtochten', 'Each quest is a chain of riddles. Find the building on the map, using its colours and layers, and click it.': 'Elke speurtocht is een reeks raadsels. Zoek het gebouw op de kaart, met de kleuren en lagen, en klik erop.',
-  'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Hint': 'Hint', 'Open the layer': 'Open de laag',
-  'Colour the map for it': 'Kleur de kaart ervoor', 'Show me': 'Laat zien', 'Next riddle': 'Volgend raadsel',
-  'Quest complete: choose another': 'Speurtocht voltooid: kies een andere', 'Found it': 'Gevonden',
+  'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
+  'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
+  'Your tiles': 'Jouw tegeltjes', 'Easy': 'Makkelijk', 'Medium': 'Gemiddeld', 'Hard': 'Moeilijk',
+  'Hint': 'Hint', 'Open the layer': 'Open de laag', 'Colour the map for it': 'Kleur de kaart ervoor', 'Show me': 'Laat zien',
+  'Next riddle': 'Volgend raadsel', 'See all quests': 'Alle speurtochten', 'Found!': 'Gevonden!', 'Right': 'Goed',
+  'Without a single hint.': 'Zonder één hint.', 'Shown, not found: no tiles.': 'Getoond, niet gevonden: geen tegeltjes.',
+  'Quest complete': 'Speurtocht voltooid', 'Any of {n} buildings counts.': 'Elk van {n} gebouwen telt.',
   'One of the buildings that answer the riddle.': 'Een van de gebouwen die het raadsel beantwoorden.',
-  'Not this one.': 'Dit is hem niet.', 'Not this one, but very close.': 'Dit is hem niet, maar je bent er heel dichtbij.',
+  'Not this one, but very close.': 'Dit is hem niet, maar je bent er heel dichtbij.',
   'Not this one. You are getting warm.': 'Dit is hem niet. Je wordt warm.', 'Not this one. Still a few streets away.': 'Dit is hem niet. Nog een paar straten verder.',
   'Not this one. Far off.': 'Dit is hem niet. Ver weg.', 'A hint may help.': 'Een hint kan helpen.',
   'Today’s photo of the building to find': 'Foto van vandaag van het gebouw dat je zoekt',
@@ -640,42 +643,59 @@ function stepFlight(now) {
 
 
 // ---------- Quests ----------
-// A chain of riddles; each is solved by finding the building on the map and clicking it (pipeline/quests.py).
-// Progress is kept in this browser only.
-let quests = [], quest = null, step = 0, hintsShown = 0, solved = false, misses = 0, questFolded = false;
+// Chains of riddles (pipeline/quests.py); each is solved by finding the building on the map and clicking it.
+// A riddle is worth three tiles; every hint costs one, "Show me" all of them. Progress stays in this browser.
+let quests = [], quest = null, step = 0, hintsShown = 0, solved = false, misses = 0, questFolded = false, revealed = false;
 fetch('data/quests.json').then(r => r.ok ? r.json() : []).then(q => { quests = q; }).catch(() => {});
 const questEl = document.getElementById('quest');
 const questsDlg = document.getElementById('quests');
 const L10 = o => o?.[LANG] || o?.en || '';
-const progress = () => { try { return JSON.parse(localStorage.getItem('quests') || '{}'); } catch { return {}; } };
-function saveProgress(id, n) {
-  try { const p = progress(); p[id] = n; localStorage.setItem('quests', JSON.stringify(p)); } catch {}
+const LEVEL = ['', 'Easy', 'Medium', 'Hard'];
+const store = () => { try { return JSON.parse(localStorage.getItem('quests2') || '{}'); } catch { return {}; } };
+function save(id, patch) {
+  try { const p = store(); p[id] = { ...(p[id] || {}), ...patch }; localStorage.setItem('quests2', JSON.stringify(p)); } catch {}
 }
+const tiles = (n, of) => `<span class="q-tiles" aria-label="${n} / ${of}">${Array.from({ length: of }, (_, i) =>
+  `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</span>`;
+const levelMark = lv => `<span class="q-level l${lv}">${tiles(lv, 3)}${t(LEVEL[lv])}</span>`;
+
 function renderQuestList() {
-  const p = progress();
-  document.getElementById('quests-body').innerHTML = `<h2 id="quests-title">${t('Quests')}</h2>
-    <p>${t('Each quest is a chain of riddles. Find the building on the map, using its colours and layers, and click it.')}</p>
-    <ul>${quests.map(q => {
-      const done = Math.min(p[q.id] || 0, q.steps.length);
-      const label = done >= q.steps.length ? t('Play again') : done ? t('Continue') : t('Start');
-      return `<li><h3>${esc(L10(q.title))}</h3><button class="q-start" data-q="${q.id}">${label}</button>
-        <p>${esc(L10(q.intro))}</p><p class="q-progress">${done} / ${q.steps.length}</p></li>`;
+  const p = store();
+  const total = quests.reduce((n, q) => n + (p[q.id]?.best || 0), 0), max = quests.length * 15;
+  document.getElementById('quests-body').innerHTML = `
+    <h2 id="quests-title">${t('Quests')}</h2>
+    <p class="q-lede">${t('Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.')}</p>
+    <p class="q-score">${t('Your tiles')}: <b>${total}</b> / ${max}</p>
+    <ul class="q-grid">${quests.map(q => {
+      const st = p[q.id] || {}, done = Math.min(st.step || 0, q.steps.length), complete = done >= q.steps.length;
+      const label = complete ? t('Play again') : done ? t('Continue') : t('Start');
+      return `<li class="q-tile${complete ? ' complete' : ''}">
+        ${levelMark(q.level)}
+        <h3>${esc(L10(q.title))}</h3>
+        <p>${esc(L10(q.intro))}</p>
+        <footer><span class="q-progress">${complete ? `${t('Best')}: ${st.best || 0} / 15` : `${done} / ${q.steps.length}`}</span>
+          <button class="q-start" data-q="${q.id}">${label}</button></footer></li>`;
     }).join('')}</ul>`;
   questsDlg.querySelectorAll('.q-start').forEach(b => b.onclick = () => {
-    const q = quests.find(q => q.id === b.dataset.q), done = progress()[q.id] || 0;
-    startQuest(q, done >= q.steps.length ? 0 : done);
+    const q = quests.find(q => q.id === b.dataset.q), st = store()[q.id] || {};
+    const fresh = !st.step || st.step >= q.steps.length;
+    startQuest(q, fresh ? 0 : st.step, fresh ? 0 : st.score || 0);
     questsDlg.close();
   });
 }
-document.querySelector('.quests-open').onclick = () => { renderQuestList(); questsDlg.showModal(); };
+function openQuests() { renderQuestList(); questsDlg.showModal(); }
+document.querySelector('.quests-open').onclick = openQuests;
 questsDlg.querySelector('.about-close').onclick = () => questsDlg.close();
 questsDlg.addEventListener('click', e => { if (e.target === questsDlg) questsDlg.close(); });
 
-function startQuest(q, n) {
-  quest = q; step = n; hintsShown = 0; solved = false; misses = 0;
-  saveProgress(q.id, n);
+let score = 0;
+function startQuest(q, n, sc = 0) {
+  quest = q; step = n; score = sc;
+  resetStep();
+  save(q.id, { step: n, score: sc });
   renderQuest();
 }
+function resetStep() { hintsShown = 0; solved = false; misses = 0; revealed = false; questFolded = false; }
 function closeQuest() { quest = null; questEl.hidden = true; }
 function setModeNamed(name) {
   const m = { period: MODE.period, floors: MODE.floors, energy: MODE.energy, layers: MODE.layers }[name];
@@ -688,64 +708,84 @@ function showLayer(id) {
   setLayer(L);
   if (phone.matches) setCollapsed(false);
 }
-// The answer's buildings, for distance feedback and for "show me".
-function answerGids(a) { return (a.bags || []).map(gidOf).filter(g => g >= 0); }
 function isAnswer(gid, a) {
   if (gid < 0) return false;
   const b = building(gid);
   if (a.bags) return a.bags.includes(b.bag);
-  if (a.before) return b.year < a.before;
-  if (a.layer) return b.groups.some(g => g.bit === a.bit);
-  return false;
+  if (a.before && !(b.year < a.before)) return false;
+  if (a.after && !(b.year > a.after)) return false;
+  if (a.bits && !a.bits.every(bit => b.groups.some(g => g.bit === bit))) return false;
+  return true;
 }
+// The answer's buildings: listed for a story, found by scanning the city for a rule (once per riddle).
+let answerCache = null;
+function answerGids(a) {
+  if (answerCache?.a === a) return answerCache.g;
+  const g = a.bags ? a.bags.map(gidOf).filter(g => g >= 0)
+    : Array.from({ length: config.stats.buildings }, (_, i) => i).filter(i => isAnswer(i, a));
+  answerCache = { a, g };
+  return g;
+}
+const stepTiles = () => revealed ? 0 : Math.max(1, 3 - hintsShown);
 function renderQuest() {
   if (!quest) return;
   const s = quest.steps[step], last = step === quest.steps.length - 1;
   const hints = s.hints.slice(0, hintsShown).map(h => `<li>${esc(L10(h))}</li>`).join('');
-  const im = s.photo;
-  const credit = im && [im.artist, im.license].filter(Boolean).map(esc).join(', ');
-  const moreHints = hintsShown < s.hints.length;
+  const im = s.photo, moreHints = hintsShown < s.hints.length;
+  questEl.className = `quest l${quest.level}${solved ? ' solved' : ''}${questFolded && !solved ? ' folded' : ''}`;
   questEl.innerHTML = `
     <button class="q-close" aria-label="${t('Close')}">×</button>
-    <header><b>${esc(L10(quest.title))}</b><span>${step + 1} / ${quest.steps.length}</span></header>
-    <div class="q-steps">${quest.steps.map((_, i) => `<i class="${i < step || (i === step && solved) ? 'done' : ''}"></i>`).join('')}</div>
+    <header><b>${esc(L10(quest.title))}</b>${levelMark(quest.level)}</header>
+    <div class="q-steps">${quest.steps.map((_, i) => `<i class="${i < step || (i === step && solved) ? 'done' : i === step ? 'now' : ''}"></i>`).join('')}
+      <span>${step + 1} / ${quest.steps.length}</span></div>
     ${im && !solved ? `<figure class="q-photo"><img src="${esc(im.thumb)}" alt="${t('Today’s photo of the building to find')}"></figure>
-      <p class="q-credit">${t('Photo')}: ${im.page ? link(im.page, [im.artist, im.license].filter(Boolean).join(', ') || 'Wikimedia Commons') : credit}</p>` : ''}
+      <p class="q-credit">${t('Photo')}: ${link(im.page, [im.artist, im.license].filter(Boolean).join(', ') || 'Wikimedia Commons')}</p>` : ''}
     <p class="q-riddle">${esc(L10(s.riddle))}</p>
+    ${s.count ? `<p class="q-count">${t('Any of {n} buildings counts.').replace('{n}', fmt(s.count))}</p>` : ''}
     ${hints ? `<ul class="q-hints">${hints}</ul>` : ''}
     ${solved ? foundHtml(s) : `<p class="q-feedback"></p>`}
     <div class="q-actions">${solved
-      ? (last ? `<button class="primary q-list">${t('Quest complete: choose another')}</button>`
+      ? (last ? `<button class="primary q-list">${t('See all quests')}</button>`
               : `<button class="primary q-next">${t('Next riddle')}</button>`)
-      : `${moreHints ? `<button class="q-hint">${t('Hint')}</button>` : ''}
+      : `${moreHints ? `<button class="q-hint">${t('Hint')} <small>−1</small></button>` : ''}
          ${s.layer ? `<button class="q-layer">${t('Open the layer')}</button>` : s.mode ? `<button class="q-mode">${t('Colour the map for it')}</button>` : ''}
-         ${s.answer.bags ? `<button class="q-reveal">${t('Show me')}</button>` : ''}`}</div>`;
+         ${s.answer.bags ? `<button class="q-reveal">${t('Show me')}</button>` : ''}
+         <span class="q-worth">${tiles(stepTiles(), 3)}</span>`}</div>`;
   questEl.hidden = false;
-  questEl.classList.toggle('folded', questFolded && !solved);
-  // On a phone the riddle folds to its title bar, so the map stays usable; a tap on the bar opens it again.
+  // On a phone the riddle folds to its title bar so the map stays usable; a tap on the bar opens it again.
   questEl.querySelector('header').onclick = () => { questFolded = !questFolded; questEl.classList.toggle('folded', questFolded); };
   questEl.querySelector('.q-close').onclick = closeQuest;
-  questEl.querySelector('.q-hint')?.addEventListener('click', () => { hintsShown++; renderQuest(); });
   const foldOnPhone = () => { if (phone.matches) { questFolded = true; questEl.classList.add('folded'); } };
+  questEl.querySelector('.q-hint')?.addEventListener('click', () => { hintsShown++; renderQuest(); });
   questEl.querySelector('.q-layer')?.addEventListener('click', () => { showLayer(s.layer); foldOnPhone(); });
   questEl.querySelector('.q-mode')?.addEventListener('click', () => { setModeNamed(s.mode); foldOnPhone(); });
   questEl.querySelector('.q-reveal')?.addEventListener('click', () => {
     const g = answerGids(s.answer)[0];
     if (g === undefined) return;
+    revealed = true;
     const b = building(g);
-    flyTo(b.x, b.z, () => { solve(g); }, 420);
+    flyTo(b.x, b.z, () => solve(g), 420);
   });
-  questEl.querySelector('.q-next')?.addEventListener('click', () => { step++; hintsShown = 0; solved = false; misses = 0; renderQuest(); });
-  questEl.querySelector('.q-list')?.addEventListener('click', () => { closeQuest(); renderQuestList(); questsDlg.showModal(); });
+  questEl.querySelector('.q-next')?.addEventListener('click', () => { step++; resetStep(); answerCache = null; save(quest.id, { step, score }); renderQuest(); });
+  questEl.querySelector('.q-list')?.addEventListener('click', () => { closeQuest(); openQuests(); });
 }
 function foundHtml(s) {
-  const f = s.found;
-  if (!f) return `<div class="q-found"><b>${t('Found it')}</b><p>${t('One of the buildings that answer the riddle.')}</p></div>`;
-  return `<div class="q-found"><b>${t('Found it')}: ${esc(LANG === 'nl' ? (f.name_nl || f.name) : f.name)}</b><p>${esc(LANG === 'nl' ? (f.story_nl || f.story) : f.story)} ${link(f.source, t('Source'))}</p></div>`;
+  const f = s.found, got = stepTiles(), last = step === quest.steps.length - 1;
+  const head = `<div class="q-stamp" aria-hidden="true">${t('Found!')}</div>`;
+  const tally = `<p class="q-earned">${tiles(got, 3)} ${got === 3 ? t('Without a single hint.') : revealed ? t('Shown, not found: no tiles.') : ''}</p>`;
+  const end = last ? `<p class="q-final">${t('Quest complete')}: <b>${score}</b> / ${quest.steps.length * 3}</p>` : '';
+  if (!f) return `<div class="q-found">${head}<b>${t('Right')}</b><p>${t('One of the buildings that answer the riddle.')}</p>${tally}${end}</div>`;
+  return `<div class="q-found">${head}<b>${esc(LANG === 'nl' ? (f.name_nl || f.name) : f.name)}</b>
+    <p>${esc(LANG === 'nl' ? (f.story_nl || f.story) : f.story)} ${link(f.source, t('Source'))}</p>${tally}${end}</div>`;
 }
 function solve(gid) {
   solved = true;
-  saveProgress(quest.id, step + 1);
+  questFolded = false;
+  score += stepTiles();
+  const st = store()[quest.id] || {};
+  const patch = { step: step + 1, score };
+  if (step === quest.steps.length - 1) patch.best = Math.max(st.best || 0, score);
+  save(quest.id, patch);
   if (gid >= 0 && pinnedGid !== gid) uniforms.uSelected.value = gid;  // "Show me" marks it; a click has pinned it already
   renderQuest();
 }
@@ -753,21 +793,18 @@ function solve(gid) {
 function questClick(gid) {
   if (!quest || solved || gid < 0) return;
   const s = quest.steps[step];
-  if (isAnswer(gid, s.answer)) { questFolded = false; solve(gid); return; }
+  if (isAnswer(gid, s.answer)) { solve(gid); return; }
   misses++;
   const fb = questEl.querySelector('.q-feedback');
   if (!fb) return;
-  let msg = t('Not this one.');
-  const targets = answerGids(s.answer);
-  if (targets.length) {
-    const b = building(gid);
-    const d = Math.min(...targets.map(g => { const a = building(g); return Math.hypot(a.x - b.x, a.z - b.z); }));
-    msg = d < 60 ? t('Not this one, but very close.') : d < 250 ? t('Not this one. You are getting warm.')
-      : d < 800 ? t('Not this one. Still a few streets away.') : t('Not this one. Far off.');
-  }
+  const b = building(gid), targets = answerGids(s.answer);
+  const d = targets.length ? Math.min(...targets.map(g => { const a = building(g); return Math.hypot(a.x - b.x, a.z - b.z); })) : Infinity;
+  let msg = d < 60 ? t('Not this one, but very close.') : d < 250 ? t('Not this one. You are getting warm.')
+    : d < 800 ? t('Not this one. Still a few streets away.') : t('Not this one. Far off.');
   if (misses >= 3 && hintsShown < s.hints.length) msg += ' ' + t('A hint may help.');
   fb.textContent = msg;
-  fb.classList.remove('miss'); void fb.offsetWidth; fb.classList.add('miss');
+  fb.className = `q-feedback ${d < 60 ? 'hot' : d < 250 ? 'warm' : 'cold'}`;
+  void fb.offsetWidth; fb.classList.add('miss');
 }
 
 // ---------- Panel ----------
@@ -909,9 +946,9 @@ function setLayer(L) {
   renderPanel(); drawHist();
 }
 
-document.querySelectorAll('.modes button').forEach(b => b.onclick = () => {
+document.querySelectorAll('.modes button[data-mode]').forEach(b => b.onclick = () => {
   uniforms.uMode.value = +b.dataset.mode;
-  document.querySelectorAll('.modes button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  document.querySelectorAll('.modes button[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b));
   const bits = Array(MAX_GROUPS).fill(-1);
   if (activeLayer) activeLayer.groups.forEach((g, i) => { if (groupOn[g.bit] !== false) bits[i] = g.bit; });
   uniforms.uGroupBit.value = bits;
@@ -1055,9 +1092,9 @@ function applyStaticText() {
   document.documentElement.lang = LANG;
   document.querySelector('.dek').textContent = t('Every building standing today, by age and historical context.');
   document.querySelector('.about-open').textContent = t('About');
-  document.querySelector('.quests-open').textContent = t('Quests');
+  document.querySelector('.quests-open span').textContent = t('Quests');
   document.querySelectorAll('[data-lang-block]').forEach(a => { a.hidden = a.dataset.langBlock !== LANG; });
-  document.querySelectorAll('.modes button').forEach(b => { b.textContent = t(b.dataset.label); });
+  document.querySelectorAll('.modes button[data-mode]').forEach(b => { b.textContent = t(b.dataset.label); });
   document.querySelector('.tally-count').childNodes[1].textContent = ' ' + t('buildings');
   document.querySelector('.howto').textContent = t('Drag to turn. Right-drag or Shift-drag to move. Scroll to zoom.');
   const ld = document.getElementById('loading'); if (ld.firstChild) ld.firstChild.textContent = t('Building the city') + ' ';
@@ -1065,7 +1102,7 @@ function applyStaticText() {
   document.querySelectorAll('.lang [data-lang]').forEach(b => b.setAttribute('aria-pressed', b.dataset.lang === LANG));
   sheetHandle.textContent = t(panelEl.classList.contains('collapsed') ? 'Show legend' : 'Hide legend');
 }
-document.querySelectorAll('.modes button').forEach(b => { b.dataset.label = b.textContent.trim(); });
+document.querySelectorAll('.modes button[data-mode]').forEach(b => { b.dataset.label = b.textContent.trim(); });
 const about = document.getElementById('about');
 document.querySelector('.about-open').onclick = () => about.showModal();
 about.querySelector('.about-close').onclick = () => about.close();

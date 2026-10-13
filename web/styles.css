@@ -221,48 +221,93 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .contribute { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 12px; }
 .contribute a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
 
-/* Quests: a riddle card in the corner that stays while the map is used to find the answer. */
-.lang .quests-open { color: var(--ink); }
-.quest { position: fixed; z-index: 11; right: var(--gutter); bottom: 132px; width: 330px; max-height: calc(100vh - 290px);
-  overflow-y: auto; background: var(--paper); border-radius: 10px; box-shadow: 0 1px 0 var(--rule), 0 8px 24px rgba(0, 0, 0, .08); }
-.quest header { cursor: pointer; display: flex; align-items: baseline; gap: 8px; padding: 12px 44px 0 16px; }
+/* Quests. The one playful thing on the page: Delft tiles. Each quest is a tile with painted corners, the score is
+   counted in tiles, and a found building gets a blue stamp. */
+.modes .quests-open { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; background: var(--accent);
+  color: var(--paper); }
+.modes .quests-open svg { width: 13px; height: 13px; fill: currentColor; }
+.modes .quests-open:hover { filter: brightness(1.15); }
+.q-tiles { display: inline-flex; gap: 2px; vertical-align: -1px; }
+.q-tiles i { width: 9px; height: 9px; border-radius: 2px; border: 1.5px solid var(--accent); background: transparent; }
+.q-tiles i.on { background: var(--accent); }
+.q-level { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--accent); }
+
+/* The list: a wall of tiles. */
+.quests { width: min(860px, calc(100vw - 32px)); }
+.quests .q-lede { max-width: 60ch; }
+.quests .q-score { font-size: 13px; color: var(--muted); margin: 0; }
+.quests .q-score b { color: var(--accent); font-size: 18px; }
+.quests .q-grid { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.quests .q-tile { margin: 0; max-width: none; line-height: 1.4; }
+.q-tile { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 20px 20px 16px; background: #fbfcff;
+  border: 1px solid #c9d3ea; border-radius: 3px; outline: 1px solid #c9d3ea; outline-offset: -8px;
+  /* the painted corners of a Delft tile */
+  background-image: radial-gradient(circle at 0 0, var(--accent) 0 10px, transparent 11px),
+    radial-gradient(circle at 100% 0, var(--accent) 0 10px, transparent 11px),
+    radial-gradient(circle at 0 100%, var(--accent) 0 10px, transparent 11px),
+    radial-gradient(circle at 100% 100%, var(--accent) 0 10px, transparent 11px); }
+.q-tile h3 { margin: 4px 0 0; font-size: 17px; letter-spacing: -0.01em; }
+.q-tile p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; flex: 1; }
+.q-tile footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.q-tile .q-progress { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.q-tile.complete { background-color: #eef2fb; }
+.quests .q-start { border: 0; background: var(--accent); color: var(--paper); border-radius: 999px; padding: 6px 14px;
+  cursor: pointer; font-size: 12px; font-weight: 700; }
+.q-tile.complete .q-start { background: var(--paper); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* The riddle card: stays in the corner while the map is used to find the answer. */
+.quest { position: fixed; z-index: 11; right: var(--gutter); bottom: 132px; width: 340px; max-height: calc(100vh - 290px);
+  overflow-y: auto; background: var(--paper); border-radius: 12px; box-shadow: 0 2px 0 var(--accent), 0 10px 30px rgba(20, 40, 100, .14); }
+.quest header { cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 11px 44px 10px 16px;
+  background: var(--accent); color: var(--paper); border-radius: 12px 12px 0 0; }
 .quest header b { font-size: 13px; }
-.quest header span { color: var(--muted); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
-.quest .q-close { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%;
-  background: none; cursor: pointer; font-size: 18px; color: var(--muted); }
-.quest .q-steps { display: flex; gap: 4px; padding: 8px 16px 0; }
-.quest .q-steps i { flex: 1; height: 3px; border-radius: 2px; background: var(--rule); }
-.quest .q-steps i.done { background: var(--accent); }
-.quest .q-photo { margin: 10px 0 0; overflow: hidden; height: 150px; background: var(--sky); }
+.quest header .q-level { color: rgba(255, 255, 255, .85); margin-left: auto; }
+.quest header .q-tiles i { border-color: rgba(255, 255, 255, .85); }
+.quest header .q-tiles i.on { background: rgba(255, 255, 255, .85); }
+.quest .q-close { position: absolute; top: 5px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%;
+  background: none; cursor: pointer; font-size: 18px; color: var(--paper); z-index: 1; }
+.quest .q-steps { display: flex; align-items: center; gap: 5px; padding: 10px 16px 0; }
+.quest .q-steps i { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid #c9d3ea; }
+.quest .q-steps i.done { background: var(--accent); border-color: var(--accent); }
+.quest .q-steps i.now { border-color: var(--accent); }
+.quest .q-steps span { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.quest .q-photo { margin: 10px 16px 0; overflow: hidden; height: 150px; border-radius: 6px; background: var(--sky); }
 .quest .q-photo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.35); display: block; }
-.quest .q-photo figcaption { display: none; }
 .quest .q-credit { font-size: 11px; color: var(--muted); padding: 4px 16px 0; margin: 0; }
+.quest .q-credit a { color: inherit; }
 .quest .q-riddle { margin: 0; padding: 10px 16px 0; font-size: 15px; line-height: 1.5; }
+.quest .q-count { margin: 6px 16px 0; font-size: 12px; color: var(--accent); font-weight: 600; }
 .quest .q-hints { margin: 8px 16px 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .quest .q-hints li { color: #3e4448; font-size: 13px; line-height: 1.45; padding-left: 10px; border-left: 2px solid var(--accent); }
-.quest .q-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 14px; }
-.quest .q-actions button, .quests .q-start { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px;
+.quest .q-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 12px 16px 14px; }
+.quest .q-actions button { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px;
   padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600; }
-.quest .q-actions .primary, .quests .q-start { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.quest .q-actions button small { color: var(--muted); font-weight: 500; }
+.quest .q-actions .primary { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+.quest .q-worth { margin-left: auto; }
 .quest .q-feedback { margin: 0; padding: 8px 16px 0; font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.quest .q-feedback.hot { color: #c2410c; font-weight: 600; }
+.quest .q-feedback.warm { color: #b7791f; }
+.quest .q-feedback.cold { color: #4a6fa5; }
 .quest .q-feedback.miss { animation: q-shake .35s; }
-.quest .q-found { margin: 10px 16px 0; padding: 10px 12px; background: #eef2fb; border-radius: 8px; }
-.quest .q-found b { display: block; margin-bottom: 4px; }
+.quest .q-found { position: relative; margin: 12px 16px 0; padding: 12px 12px 10px; background: #eef2fb; border-radius: 8px; }
+.quest .q-found b { display: block; margin-bottom: 4px; padding-right: 90px; }
 .quest .q-found p { margin: 0; font-size: 13px; line-height: 1.5; }
 .quest .q-found a { color: inherit; text-decoration-color: var(--accent); }
+.quest .q-found .q-earned { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.quest .q-found .q-final { margin-top: 8px; font-size: 14px; }
+.quest .q-found .q-final b { color: var(--accent); font-size: 18px; }
+.q-stamp { position: absolute; top: -10px; right: 10px; padding: 4px 10px; border: 2.5px solid var(--accent); border-radius: 6px;
+  color: var(--accent); font-weight: 800; font-size: 14px; letter-spacing: .02em; background: rgba(238, 242, 251, .9);
+  transform: rotate(-8deg); animation: q-stamp .45s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes q-stamp { from { transform: rotate(-30deg) scale(2.2); opacity: 0; } to { transform: rotate(-8deg) scale(1); opacity: 1; } }
 @keyframes q-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-.quests ul { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.quests li { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto;
-  gap: 4px 12px; align-items: center; }
-.quests li h3 { margin: 0; font-size: 16px; }
-.quests li p { margin: 0; color: var(--muted); grid-column: 1; }
-.quests li .q-start { grid-row: 1 / span 2; grid-column: 2; }
-.quests .q-progress { font-size: 12px; color: var(--muted); }
+.quest.folded > :not(header):not(.q-close):not(.q-steps):not(.q-feedback) { display: none; }
+.quest.folded .q-feedback, .quest.folded .q-steps { padding-bottom: 10px; }
 @media (max-width: 720px) {
   .quest { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); max-height: 46vh; }
   .quest .q-photo { height: 110px; }
+  .quests .q-grid { grid-template-columns: 1fr; }
+  .modes .quests-open { order: -1; margin: 0 4px 0 0; }
 }
-.quest.folded > :not(header):not(.q-close):not(.q-steps):not(.q-feedback) { display: none; }
-.quest.folded .q-feedback { padding-bottom: 10px; }
-.quest.folded .q-steps { padding-bottom: 10px; }
-@media (prefers-reduced-motion: reduce) { .quest .q-feedback.miss { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .quest .q-feedback.miss, .q-stamp { animation: none; } }

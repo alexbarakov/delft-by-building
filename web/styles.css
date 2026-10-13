@@ -220,3 +220,49 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 @media (max-width: 720px) { .about article { padding: 20px 18px 24px; } }
 .contribute { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--rule); font-size: 12px; }
 .contribute a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+/* Quests: a riddle card in the corner that stays while the map is used to find the answer. */
+.lang .quests-open { color: var(--ink); }
+.quest { position: fixed; z-index: 11; right: var(--gutter); bottom: 132px; width: 330px; max-height: calc(100vh - 290px);
+  overflow-y: auto; background: var(--paper); border-radius: 10px; box-shadow: 0 1px 0 var(--rule), 0 8px 24px rgba(0, 0, 0, .08); }
+.quest header { cursor: pointer; display: flex; align-items: baseline; gap: 8px; padding: 12px 44px 0 16px; }
+.quest header b { font-size: 13px; }
+.quest header span { color: var(--muted); font-size: 12px; margin-left: auto; font-variant-numeric: tabular-nums; }
+.quest .q-close { position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%;
+  background: none; cursor: pointer; font-size: 18px; color: var(--muted); }
+.quest .q-steps { display: flex; gap: 4px; padding: 8px 16px 0; }
+.quest .q-steps i { flex: 1; height: 3px; border-radius: 2px; background: var(--rule); }
+.quest .q-steps i.done { background: var(--accent); }
+.quest .q-photo { margin: 10px 0 0; overflow: hidden; height: 150px; background: var(--sky); }
+.quest .q-photo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.35); display: block; }
+.quest .q-photo figcaption { display: none; }
+.quest .q-credit { font-size: 11px; color: var(--muted); padding: 4px 16px 0; margin: 0; }
+.quest .q-riddle { margin: 0; padding: 10px 16px 0; font-size: 15px; line-height: 1.5; }
+.quest .q-hints { margin: 8px 16px 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.quest .q-hints li { color: #3e4448; font-size: 13px; line-height: 1.45; padding-left: 10px; border-left: 2px solid var(--accent); }
+.quest .q-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 14px; }
+.quest .q-actions button, .quests .q-start { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px;
+  padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.quest .q-actions .primary, .quests .q-start { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.quest .q-feedback { margin: 0; padding: 8px 16px 0; font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.quest .q-feedback.miss { animation: q-shake .35s; }
+.quest .q-found { margin: 10px 16px 0; padding: 10px 12px; background: #eef2fb; border-radius: 8px; }
+.quest .q-found b { display: block; margin-bottom: 4px; }
+.quest .q-found p { margin: 0; font-size: 13px; line-height: 1.5; }
+.quest .q-found a { color: inherit; text-decoration-color: var(--accent); }
+@keyframes q-shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.quests ul { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.quests li { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto;
+  gap: 4px 12px; align-items: center; }
+.quests li h3 { margin: 0; font-size: 16px; }
+.quests li p { margin: 0; color: var(--muted); grid-column: 1; }
+.quests li .q-start { grid-row: 1 / span 2; grid-column: 2; }
+.quests .q-progress { font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .quest { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); max-height: 46vh; }
+  .quest .q-photo { height: 110px; }
+}
+.quest.folded > :not(header):not(.q-close):not(.q-steps):not(.q-feedback) { display: none; }
+.quest.folded .q-feedback { padding-bottom: 10px; }
+.quest.folded .q-steps { padding-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .quest .q-feedback.miss { animation: none; } }

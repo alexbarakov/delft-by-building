@@ -32,6 +32,7 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 | `s08_curated` | Checks hand-written stories against Wikipedia and geocodes them |
 | `s09_residents` | Finds addresses of well-known residents in Dutch Wikipedia |
 | `s10_commons` | Finds more building photos on Commons by address in the file name |
+| `s12_quests` | Resolves the quests (chains of riddles in `pipeline/quests.py`) to their buildings |
 
 ## Run it
 
@@ -39,7 +40,7 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 uv sync
 # raw inputs: the 3D BAG tiles listed in data/raw/tiles_needed.csv, the PDOK boundary, then the s00_* fetchers
 for s in s00_fetch_registers s00_fetch_addresses s00_fetch_water s00_fetch_energy s01_load s01b_monuments \
-         s02_attributes s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water; do
+         s02_attributes s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water s12_quests; do
   uv run python -m pipeline.$s
 done
 python3 -m http.server 8644 --directory web

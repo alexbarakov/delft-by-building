@@ -50,3 +50,10 @@ uv run python -m pipeline.s05_layers    # counts per group, missing translations
 uv run python -m pipeline.s03_tiles
 python3 -m http.server 8642 --directory web
 ```
+
+## 3. A quest
+
+A quest is a chain of riddles; each one is solved by finding a building on the map. Add it to `QUESTS` in
+[`pipeline/quests.py`](pipeline/quests.py). Build riddles on facts the map already carries (a story of a context layer,
+a 'Did you know' fact, a year or a layer group), give each a hint that names a street or a layer, and run
+`uv run python -m pipeline.s12_quests` to check every answer resolves to buildings.

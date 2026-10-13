@@ -31,6 +31,7 @@
 </nav>
 
 <div class="lang" role="group" aria-label="Language">
+  <button class="quests-open" aria-haspopup="dialog">Quests</button>
   <button class="about-open" aria-haspopup="dialog">About</button>
   <button data-lang="en" aria-pressed="true">EN</button><button data-lang="nl" aria-pressed="false">NL</button>
 </div>
@@ -114,6 +115,11 @@
 </aside>
 
 <div id="card" class="card" hidden></div>
+<section id="quest" class="quest" hidden aria-live="polite"></section>
+<dialog id="quests" class="about quests" aria-labelledby="quests-title">
+  <button class="about-close" aria-label="Close">×</button>
+  <article id="quests-body"></article>
+</dialog>
 <p class="howto">Drag to turn. Right-drag or Shift-drag to move. Scroll to zoom.</p>
 
 <footer class="timeline">

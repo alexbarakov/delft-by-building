@@ -397,3 +397,10 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .quest.walk .w-kml svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .w-stops .w-off .w-num { background: #9fb0d8; }
 .w-stops .w-off b { color: #4b5560; }
+/* The bar holds two kinds of thing: how the city is coloured, then what to do in it. */
+.modes .modes-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 6px; background: var(--rule); }
+@media (max-width: 720px) {
+  /* On a phone the actions come first, then the divider, then the colourings. */
+  .modes button[data-mode] { order: 1; }
+  .modes .modes-sep { order: 0; margin: 6px 2px; }
+}

@@ -14,6 +14,7 @@ import re
 from functools import cache
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import shapely
 from shapely.geometry import Point
@@ -243,6 +244,16 @@ def cadastre_1832():
     plots = gpd.read_file(f"{RAW}/percelen_1832.geojson").set_crs(28992, allow_override=True)
     plots = plots[plots.KOPPELNR.isin(owners)]
     b = buildings()
+    # Only buildings that stand where a building of 1832 stood (60% of today's footprint): a 1990s block on an
+    # old plot belongs to the plot, not to the town of 1832.
+    old = gpd.read_file(f"{RAW}/gebouwen_1832.geojson").set_crs(28992, allow_override=True)
+    old_union = shapely.union_all(shapely.make_valid(old.geometry.values))
+    geom = shapely.make_valid(b.geometry.values)
+    near = shapely.intersects(geom, old_union)
+    cover = np.zeros(len(b))
+    cover[near] = shapely.area(shapely.intersection(geom[near], old_union)) / shapely.area(geom[near])
+    # ... and that are not plainly younger: a house the map dates after 1900 is a rebuilding on the old footprint.
+    b = b[(cover >= 0.6) & (b.year.to_numpy() <= 1900)]
     pts = gpd.GeoDataFrame({"bag": b.bag}, geometry=b.geometry.representative_point(), crs=28992)
     j = gpd.sjoin(pts, plots[["KOPPELNR", "SECTIELETT", "PERCNR", "geometry"]], predicate="within")
     out = {}
@@ -264,10 +275,10 @@ def cadastre_1832():
 LAYERS.append(dict(
     id="kadaster1832", section="Discover", title="Delft in 1832", era="1832",
     text=("The first national land register, drawn up in 1832, names the owner of every plot and often their trade. "
-          "Each building today shows who owned the plot it stands on: potters, innkeepers, bakers, merchants and "
-          "craftsmen among them."),
-    caveat=("A building belongs to the 1832 plot its centre stands on; the house itself may have been rebuilt since. "
-            "Old town only, where the 1832 parcels are mapped."),
+          "Each building that stands where a building of 1832 stood shows who owned it then: potters, innkeepers, "
+          "bakers, merchants and craftsmen among them."),
+    caveat=("Only buildings that stand on the footprint of a building of 1832 and that the map dates no later than "
+            "1900; those after 1832 may be a rebuilding. Old town only, where the 1832 parcels are mapped."),
     source=("Erfgoed Delft, Kadaster 1832; Gemeente Delft, percelen 1832", "https://erfgoeddelft.nl/stadsarchief/open-data"),
     groups=[(k, label) for k, label, _ in TRADES] + [("other", "Other owners")],
     source_fn=cadastre_1832))

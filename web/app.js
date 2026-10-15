@@ -68,6 +68,7 @@ const NL_UI = {
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
   'about {m} min': 'ongeveer {m} min', 'Download the walk with its stories (KML), for Google My Maps: Create a new map, then Import.': 'Download de wandeling met verhalen (KML), voor Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps takes nine stops; the paler ones lie on the way.': 'Google Maps neemt negen stops; de lichtere liggen onderweg.', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
+  'Buildings today': 'De gebouwen nu',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
   'Your tiles': 'Jouw tegeltjes', 'Easy': 'Makkelijk', 'Medium': 'Gemiddeld', 'Hard': 'Moeilijk',
@@ -732,8 +733,18 @@ function startQuest(q, n, sc = 0) {
 function resetStep() { hintsShown = 0; solved = false; misses = 0; revealed = false; questFolded = false; }
 function closeQuest() { quest = null; questEl.hidden = true; }
 function setModeNamed(name) {
-  const m = { period: MODE.period, floors: MODE.floors, energy: MODE.energy, layers: MODE.layers }[name];
+  if (name === 'floors' || name === 'energy') { setBuildingView(MODE[name]); return; }
+  const m = { period: MODE.period, layers: MODE.layers }[name];
   document.querySelector(`.modes button[data-mode="${m}"]`)?.click();
+}
+// Storeys and energy labels are views of the buildings themselves; they live in the context layers list.
+function setBuildingView(m) {
+  document.querySelectorAll('.modes button[data-mode]').forEach(x => x.setAttribute('aria-pressed', x.dataset.mode === String(MODE.layers)));
+  activeLayer = null;
+  uniforms.uGroupBit.value = Array(MAX_GROUPS).fill(-1);
+  uniforms.uMode.value = m;
+  if (!phone.matches) setCollapsed(false);
+  renderPanel(); drawHist();
 }
 function showLayer(id) {
   const L = layers.find(L => L.id === id);
@@ -1271,6 +1282,7 @@ let maskTarget = periods.map(() => 1);
 const ICON = {
   'Discover': '<circle cx="8" cy="8" r="6.2"/><path d="M10.6 5.4 9 9 5.4 10.6 7 7z"/>',
   'Architecture': '<path d="M3 14.5V7l5-4.5L13 7v7.5z"/><path d="M6.5 14.5v-4h3v4"/>',
+  'Buildings today': '<path d="M2.5 14.5h11"/><rect x="3" y="8" width="2.6" height="6.5"/><rect x="6.7" y="4" width="2.6" height="10.5"/><rect x="10.4" y="6" width="2.6" height="8.5"/>',
   'House of Orange': '<path d="M2.5 12.5 2 5l3.2 3L8 3.5 10.8 8 14 5l-.5 7.5z"/><path d="M2.5 14.5h11"/>',
   'Art and craft': '<path d="M6 1.5h4M6.6 1.5v2.6C4.2 5.5 3.6 8 4 10.5c.4 2.4 1.9 4 4 4s3.6-1.6 4-4c.4-2.5-.2-5-2.6-6.4V1.5"/><path d="M5.2 8.5c1.8.8 3.8.8 5.6 0"/>',
   'Science and learning': '<path d="M6 1.5h4M6.8 1.5v4.5L3 13.2c-.4.7.1 1.3.9 1.3h8.2c.8 0 1.3-.6.9-1.3L9.2 6V1.5"/><path d="M4.6 10.5h6.8"/>',
@@ -1281,6 +1293,7 @@ const ICON = {
 };
 const sectionIcon = sec => `<svg class="icon" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round">${ICON[sec] || ''}</svg>`;
 
+const backToLayers = () => { uniforms.uMode.value = MODE.layers; renderPanel(); drawHist(); };
 function renderPanel() {
   const mode = uniforms.uMode.value;
   if (mode === MODE.period) {
@@ -1296,16 +1309,18 @@ function renderPanel() {
       renderPanel(); drawHist();
     });
   } else if (mode === MODE.floors) {
-    panel.innerHTML = `<h2>${t('Storeys')}</h2>
+    panel.innerHTML = `<button class="back">${t('All context layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Storeys')}</h2>
       <div class="ramp" style="background:linear-gradient(90deg,#dbe3e6,#7da8bf,#2b5c8c,#0d1a40)"></div>
       <div class="ramp-scale"><span>1</span><span>3</span><span>8</span><span>20</span><span>40+</span></div>
       <p class="note">${LANG === 'nl' ? `${fmt(config.stats.floorsBag3d)} gebouwen krijgen hun verdiepingen uit het 3D BAG-model; de rest, ${fmt(config.stats.floorsHeight)}, uit hun hoogte gedeeld door 3,2 m.` : `${fmt(config.stats.floorsBag3d)} buildings take their storeys from the 3D BAG model; the rest, ${fmt(config.stats.floorsHeight)}, from their height divided by 3.2 m.`}</p>`;
+    panel.querySelector('.back').onclick = backToLayers;
   } else if (mode === MODE.energy) {
     const e = config.energy;
-    panel.innerHTML = `<h2>${t('Energy label')}</h2><div class="energy-scale">${e.labels.map((l, i) => `
+    panel.innerHTML = `<button class="back">${t('All context layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Energy label')}</h2><div class="energy-scale">${e.labels.map((l, i) => `
       <div><i style="background:${ENERGY_COLORS[i + 1]}"></i><span>${l}</span><span class="n">${fmt(e.counts[i + 1])}</span></div>`).reverse().join('')}</div>
       <p class="note">${LANG === 'nl' ? `Het label dat de meeste woningen in een gebouw hebben. ${fmt(e.counts[0])} gebouwen, wit op de kaart, hebben geen geregistreerd label.` : `The label most homes in a building carry. ${fmt(e.counts[0])} buildings, white on the map, have no registered label.`}</p>
       <a class="src" href="https://www.atlasleefomgeving.nl/energielabels-van-gebouwen" target="_blank" rel="noopener">${t('RVO energy labels, via Atlas Leefomgeving')}</a>`;
+    panel.querySelector('.back').onclick = backToLayers;
   } else if (activeLayer && activeLayer === residentsLayer) {
     const notes = Object.entries(residentsLayer?.notes || {});
     const people = notes.flatMap(([bag, n]) => n.people.map(p => ({ ...p, bag, at: n.at })))
@@ -1337,10 +1352,17 @@ function renderPanel() {
       <button class="layer" data-id="${L.id}">
         <b>${esc(tr(L, 'title'))}</b><span class="n">${fmt(L.count)}</span><span class="era">${esc(tr(L, 'era'))}</span>
       </button>`).join('')}</div>`).join('');
+    // The buildings as they are today: storeys and energy labels, first in the list.
+    const labelled = config.energy.counts.slice(1).reduce((a, b) => a + b, 0);
+    panel.querySelector('.jump').insertAdjacentHTML('afterbegin', `<button data-sec="today" title="${t('Buildings today')}" aria-label="${t('Buildings today')}">${sectionIcon('Buildings today')}</button>`);
+    panel.querySelector('.jump').insertAdjacentHTML('afterend', `<h2 class="section" id="sec-today">${sectionIcon('Buildings today')}${t('Buildings today')}</h2>
+      <div class="layers"><button class="layer view" data-view="floors"><b>${t('Storeys')}</b><span class="n">${fmt(config.stats.buildings)}</span><span class="era">${t('3D BAG')}</span></button>
+      <button class="layer view" data-view="energy"><b>${t('Energy label')}</b><span class="n">${fmt(labelled)}</span><span class="era">${t('RVO')}</span></button></div>`);
+    panel.querySelectorAll('.layer.view').forEach(b => b.onclick = () => setBuildingView(MODE[b.dataset.view]));
     panel.insertAdjacentHTML('beforeend', `<p class="contribute"><a href="https://github.com/alexbarakov/delft-by-building/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">${t('Add a layer on GitHub')}</a></p>`);
     panel.querySelectorAll('.jump button').forEach(b => b.onclick = () =>
-      panel.querySelector(`#sec-${b.dataset.sec.replace(/\W+/g, '-')}`).scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    panel.querySelectorAll('.layer').forEach(b => b.onclick = () => setLayer(contextLayers.find(l => l.id === b.dataset.id)));
+      panel.querySelector(`#sec-${b.dataset.sec.replace(/\W+/g, '-')}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    panel.querySelectorAll('.layer:not(.view)').forEach(b => b.onclick = () => setLayer(contextLayers.find(l => l.id === b.dataset.id)));
   } else {
     panel.innerHTML = `<button class="back">${t('All context layers')}</button>
       <h2 class="layer-title">${sectionIcon(activeLayer.section)}${esc(tr(activeLayer, 'title'))}</h2><p class="layer-era">${esc(tr(activeLayer, 'era'))}</p>${layerDetail(activeLayer)}`;

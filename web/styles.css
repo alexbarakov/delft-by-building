@@ -391,6 +391,9 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .w-share { border: 0; background: var(--accent); color: var(--paper); border-radius: 999px; padding: 8px 16px;
   cursor: pointer; font-size: 13px; font-weight: 700; }
 .quest.walk > .q-actions { border-bottom: 1px solid var(--rule); }
-.quest.walk .w-kml { background: var(--paper); }
+.quest.walk .q-actions .w-kml { width: 28px; height: 28px; padding: 0; border: 0; background: none; color: var(--muted);
+  display: inline-grid; place-items: center; border-radius: 50%; margin-left: auto; }
+.quest.walk .q-actions .w-kml:hover { color: var(--accent); background: #eef2fb; }
+.quest.walk .w-kml svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .w-stops .w-off .w-num { background: #9fb0d8; }
 .w-stops .w-off b { color: #4b5560; }

@@ -1180,8 +1180,9 @@ function requestLocation() {
   { enableHighAccuracy: true, timeout: 10000 });
 }
 function showWalkHint() {
+  const folded = !walkEl.hidden && walkEl.classList.contains('folded');
   walkEl.hidden = false;
-  walkEl.className = 'quest walk';
+  walkEl.className = 'quest walk' + (folded ? ' folded' : '');
   walkEl.innerHTML = `<header><b>${t('Plan a walk')}</b></header><p class="q-riddle">${t('Click the map where the walk should start.')}</p>
     <div class="q-actions"><button class="w-cancel">${t('Cancel')}</button></div>`;
   walkEl.querySelector('.w-cancel').onclick = () => { pickingStart = false; walkEl.hidden = true; openWalks(); };
@@ -1201,7 +1202,10 @@ function makeWalk() {
   walkRoute = w;
   walksDlg.close();
   drawWalk(w);
+  walkEl.hidden = true;
   renderWalk();
+  // on a phone a new walk opens folded to its bar, so the route on the map is what one sees first
+  if (phone.matches) walkEl.classList.add('folded');
   const xs = w.route.map(p => p.x), zs = w.route.map(p => p.z);
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
   flyTo((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2, null, Math.max(600, span * 2.2));

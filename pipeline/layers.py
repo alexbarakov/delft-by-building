@@ -167,7 +167,8 @@ def _curated_layer(L):
     def fn():
         out = {}
         for e in L["entries"]:
-            out.setdefault(e["bag"], []).append((e["group"], {"story": e["story"], "source": e["source"], "name": e["name"]}))
+            out.setdefault(e["bag"], []).append((e["group"], {"story": e["story"], "source": e["source"], "name": e["name"],
+                                                           "address": e["address"]}))
         return out
 
     LAYERS.append(dict(id=L["id"], section=L.get("section", "Discover"), title=L["title"], era=L["era"], text=L["intro"],

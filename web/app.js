@@ -66,7 +66,7 @@ const NL_UI = {
   'You seem to be outside the city, so the walk starts at the Markt.': 'Je lijkt buiten de stad te zijn, dus de wandeling begint op de Markt.',
   'The location was not shared. Pick a start on the map instead.': 'De locatie werd niet gedeeld. Kies het begin op de kaart.',
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
-  'about {m} min': 'ongeveer {m} min', 'Google Maps, part {i} of {n}': 'Google Maps, deel {i} van {n}', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
+  'about {m} min': 'ongeveer {m} min', 'Stops with stories (KML)': 'Stops met verhalen (KML)', 'Import it in Google My Maps: Create a new map, then Import.': 'Importeer in Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps, part {i} of {n}': 'Google Maps, deel {i} van {n}', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
@@ -963,8 +963,16 @@ function planWalk(prefs, start) {
   }
   return w;
 }
+// A stop goes to Google Maps by name and address, so Google opens its own card for the place (often with the
+// Wikipedia summary); a stop without an address, and the start, go by coordinates.
+const poiAddress = p => p.notes.map(x => x.n.address || x.n.people?.find(q => q.address)?.address).find(Boolean);
+function poiQuery(p) {
+  const addr = poiAddress(p), name = poiName(p);
+  if (!addr) return null;
+  return [name && name !== addr ? name : null, addr, config.label].filter(Boolean).join(', ');
+}
 function googleUrls(w) {
-  const ll = p => toLatLon(p.x, p.z).map(v => v.toFixed(6)).join(',');
+  const ll = p => (!p.start && poiQuery(p)) || toLatLon(p.x, p.z).map(v => v.toFixed(6)).join(',');
   const seq = [w.start, ...w.stops, ...(w.loop ? [w.start] : [])];
   const urls = [], legs = Math.ceil((seq.length - 1) / (GOOGLE_LEG + 1)), per = Math.ceil((seq.length - 1) / legs);
   for (let i = 0; i < seq.length - 1; i += per) {
@@ -978,6 +986,35 @@ function googleUrls(w) {
     urls.push({ url: u.toString(), from: i, to: i + leg.length - 1 });
   }
   return urls;
+}
+// The walk as KML, for Google My Maps or any map app: every stop with its story, its sources and a photo.
+function walkKml(w) {
+  const x = v => String(v ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  const pt = p => toLatLon(p.x, p.z).reverse().join(',') + ',0';
+  const marks = w.stops.map((p, i) => {
+    const g = gidOf(p.bag), wk = g >= 0 ? wiki[building(g).wk] : null, img = wk?.image?.thumb;
+    const art = wk && (LANG === 'nl' ? wk.wiki_nl || wk.wiki : wk.wiki || wk.wiki_nl);
+    const stories = p.notes.map(n => n.n.people
+      ? `<p>${n.n.people.map(q => `${x(q.person)} (<a href="${x(q.url)}">Wikipedia</a>)`).join(', ')}</p>`
+      : `<p>${x(tr(n.n, 'story'))}${n.n.source ? ` <a href="${x(n.n.source)}">${x(t('Source'))}</a>` : ''}</p>`).join('');
+    const desc = `${img ? `<img src="${x(img)}" width="300"/>` : ''}${stories}${art?.url ? `<p><a href="${x(art.url)}">Wikipedia</a></p>` : ''}`;
+    return `<Placemark><name>${i + 1}. ${x(poiName(p))}</name><description><![CDATA[${desc}]]></description>
+<Point><coordinates>${pt(p)}</coordinates></Point></Placemark>`;
+  }).join('\n');
+  const line = [w.start, ...w.stops, ...(w.loop ? [w.start] : [])].map(pt).join(' ');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>LAYRS ${x(config.label)}: ${x(t('Your walk'))}</name>
+<Placemark><name>${x(t('Start'))}</name><Point><coordinates>${pt(w.start)}</coordinates></Point></Placemark>
+${marks}
+<Placemark><name>${x(t('Your walk'))}</name><LineString><tessellate>1</tessellate><coordinates>${line}</coordinates></LineString></Placemark>
+</Document></kml>`;
+}
+function downloadKml(w) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([walkKml(w)], { type: 'application/vnd.google-earth.kml+xml' }));
+  a.download = `layrs-${config.city}-walk.kml`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 // ---- on the map: a ribbon along the walk and a numbered disc over every stop
 function discTexture(text, fill, ink) {
@@ -1119,19 +1156,21 @@ function renderWalk() {
   walkEl.innerHTML = `
     <button class="q-close" aria-label="${t('Close')}">×</button>
     <header><b>${t('Your walk')}</b><span class="w-meta">${(w.length / 1000).toFixed(1).replace('.', LANG === 'nl' ? ',' : '.')} km · ${t('about {m} min').replace('{m}', mins)}</span></header>
+    <div class="q-actions">${googleUrls(w).map((g, i, all) => `<a class="w-google" href="${esc(g.url)}" target="_blank" rel="noopener">${all.length > 1
+      ? t('Google Maps, part {i} of {n}').replace('{i}', i + 1).replace('{n}', all.length) : t('Open in Google Maps')}</a>`).join('')}
+      <button class="w-kml" title="${t('Import it in Google My Maps: Create a new map, then Import.')}">${t('Stops with stories (KML)')}</button>
+      <button class="w-change">${t('Change')}</button></div>
     <ol class="w-stops">${w.stops.map((p, i) => {
       const pref = [...p.notes].sort((a, b) => (walkPrefs.layers.includes(b.L.id) ? 1 : 0) - (walkPrefs.layers.includes(a.L.id) ? 1 : 0));
       const story = pref.map(x => x.n.people ? x.n.people.map(q => q.person).join(', ') : tr(x.n, 'story')).find(Boolean) || '';
       return `<li><button data-i="${i}"><span class="w-num">${i + 1}</span><span><b>${esc(poiName(p))}</b><em>${esc(story)}</em></span></button></li>`;
     }).join('')}</ol>
-    <div class="q-actions">${googleUrls(w).map((g, i, all) => `<a class="w-google" href="${esc(g.url)}" target="_blank" rel="noopener">${all.length > 1
-      ? t('Google Maps, part {i} of {n}').replace('{i}', i + 1).replace('{n}', all.length) : t('Open in Google Maps')}</a>`).join('')}
-      <button class="w-change">${t('Change')}</button></div>
     <p class="q-credit">${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
       : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}</p>`;
   walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null);
     const u = new URL(location.href); u.searchParams.delete('walk'); history.replaceState(null, '', u); };
   walkEl.querySelector('.w-change').onclick = openWalks;
+  walkEl.querySelector('.w-kml').onclick = () => downloadKml(w);
   // On a phone the list folds to its title bar and the Google Maps button; a tap on the bar opens it again.
   walkEl.querySelector('header').onclick = () => walkEl.classList.toggle('folded');
   walkEl.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
@@ -1548,4 +1587,4 @@ renderer.setAnimationLoop(now => {
 });
 
 
-window.__dbg = { groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };
+window.__dbg = { walkKml, googleUrls, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };

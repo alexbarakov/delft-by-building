@@ -404,3 +404,19 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
   .modes button, .modes .walks-open, .modes .quests-open, .modes .graph-open { padding: 7px 9px; font-size: 13.5px; }
   .modes .modes-sep { margin: 6px 2px; }
 }
+/* Legend panel: never scrolls sideways; the way back to the list stays in view; the list is one line a layer. */
+.panel { overflow-x: hidden; }
+.jump { flex-wrap: wrap; gap: 4px; }
+.jump button { width: 30px; height: 30px; }
+.jump .icon { width: 16px; height: 16px; }
+.panel .back { position: sticky; top: -14px; z-index: 2; display: block; width: calc(100% + 32px); margin: -14px -16px 10px;
+  padding: 10px 16px; text-align: left; background: var(--paper); border-bottom: 1px solid var(--rule); color: var(--ink);
+  font-weight: 600; }
+.panel .back:hover { background: var(--sky); }
+.layers { margin: 0 -6px; gap: 0; }
+.layer { grid-template-columns: 1fr auto auto; align-items: baseline; gap: 0 10px; padding: 5px 6px; font-size: 13px; }
+.layer b { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer .era { grid-row: 1; grid-column: 2; font-size: 11px; white-space: nowrap; }
+.layer .n { grid-row: 1; grid-column: 3; font-size: 11px; min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.panel h2.section { margin: 10px 0 2px; font-size: 12px; }
+@media (max-width: 720px) { .panel .back { top: 0; margin-top: 0; } }

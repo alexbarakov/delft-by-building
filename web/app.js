@@ -66,7 +66,7 @@ const NL_UI = {
   'You seem to be outside the city, so the walk starts at the Markt.': 'Je lijkt buiten de stad te zijn, dus de wandeling begint op de Markt.',
   'The location was not shared. Pick a start on the map instead.': 'De locatie werd niet gedeeld. Kies het begin op de kaart.',
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
-  'about {m} min': 'ongeveer {m} min', 'Download the walk with its stories (KML), for Google My Maps: Create a new map, then Import.': 'Download de wandeling met verhalen (KML), voor Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps takes nine stops; the paler ones lie on the way.': 'Google Maps neemt negen stops; de lichtere liggen onderweg.', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
+  'about {m} min': 'ongeveer {m} min', 'Download the walk with its stories (KML), for Google My Maps: Create a new map, then Import.': 'Download de wandeling met verhalen (KML), voor Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps takes nine stops; the paler ones lie on the way.': 'Google Maps neemt negen stops; de lichtere liggen onderweg.', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'How many stops': 'Hoeveel stops', 'As many as fit': 'Zoveel als past', 'Fewer stops than asked: that is all the stories you chose.': 'Minder stops dan gevraagd: meer verhalen van je keuze zijn er niet.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
   'Buildings today': 'De gebouwen nu',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
@@ -870,7 +870,7 @@ const walksDlg = document.getElementById('walks');
 const walkGroup = new THREE.Group();
 walkGroup.renderOrder = 5;
 scene.add(walkGroup);
-let walkPrefs = { layers: [], start: 0, km: 3, loop: true, at: null }, walkRoute = null, pickingStart = false;
+let walkPrefs = { layers: [], start: 0, km: 3, loop: true, at: null, stops: 0 }, walkRoute = null, pickingStart = false;
 
 // WGS84 → local metres (inverse of toLatLon, Schreutelkamp and Strang van Hees, ~1 m).
 function fromLatLon(lat, lon) {
@@ -920,7 +920,7 @@ function poiScore(p, chosen) {
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 function pathLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1], pts[i]); return d; }
-function planWalkWithGap({ layers: chosen, km, loop }, start, gap) {
+function planWalkWithGap({ layers: chosen, km, loop, stops: asked }, start, gap) {
   const budget = km * 1000 / DETOUR;
   const S = { x: start[0], z: start[1], start: true };
   let cand = pois().map(p => ({ ...p, score: poiScore(p, chosen) }))
@@ -930,7 +930,8 @@ function planWalkWithGap({ layers: chosen, km, loop }, start, gap) {
   cand.sort((a, b) => b.score - a.score);
   cand = cand.filter((p, i) => !cand.slice(0, i).some(q => dist(p, q) < 25));
   const route = loop ? [S, S] : [S];
-  const max = loop ? MAX_STOPS : MAX_STOPS + 1;
+  const cap = asked || MAX_STOPS;
+  const max = loop ? cap : cap + 1;
   while (route.length - (loop ? 2 : 1) < max) {
     let best = null;
     for (const c of cand) {
@@ -962,7 +963,7 @@ function planWalkWithGap({ layers: chosen, km, loop }, start, gap) {
 }
 // A wide spacing first; when the chosen stories are few and close together, tighter spacings keep them all.
 function planAtLength(prefs, start) {
-  const wide = Math.min(400, Math.max(30, prefs.km * 1000 / DETOUR / (MAX_STOPS * 2.2)));
+  const wide = Math.min(400, Math.max(30, prefs.km * 1000 / DETOUR / ((prefs.stops || MAX_STOPS) * 2.2)));
   const plans = [wide, wide / 2, wide / 4, 25].map(g => planWalkWithGap(prefs, start, g));
   const most = Math.max(...plans.map(p => p.stops.length));
   return plans.find(p => p.stops.length >= most);  // the widest spacing that loses no stop
@@ -972,9 +973,9 @@ function planAtLength(prefs, start) {
 const MIN_STOPS = 4;
 function planWalk(prefs, start) {
   const available = pois().filter(p => poiScore(p, prefs.layers) > 0).length;
-  const want = Math.min(MIN_STOPS, available);
+  const want = Math.min(prefs.stops || MIN_STOPS, available);
   let w = planAtLength(prefs, start);
-  for (let k = 1.25; w.stops.length < want && k <= 3.01; k += 0.25) {
+  for (let k = 1.25; w.stops.length < want && k <= 4.01; k += 0.25) {
     w = planAtLength({ ...prefs, km: prefs.km * k }, start);
     w.stretched = true;
   }
@@ -1110,6 +1111,8 @@ function renderWalkPlanner(msg = '') {
       <span class="w-sep"></span>
       <button class="w-chip" data-loop="1" aria-pressed="${walkPrefs.loop}">${t('Back to the start')}</button>
       <button class="w-chip" data-loop="0" aria-pressed="${!walkPrefs.loop}">${t('One way')}</button></div>
+    <h3>${t('How many stops')}</h3>
+    <div class="w-chips">${[0, 5, 10, 15, 20].map(n => `<button class="w-chip" data-stops="${n}" aria-pressed="${walkPrefs.stops === n}">${n ? n : t('As many as fit')}</button>`).join('')}</div>
     ${msg ? `<p class="w-msg">${esc(msg)}</p>` : ''}
     <div class="w-go"><button class="w-make">${t('Make my walk')}</button></div>`;
   const body = document.getElementById('walks-body');
@@ -1120,6 +1123,7 @@ function renderWalkPlanner(msg = '') {
   });
   body.querySelectorAll('[data-start]').forEach(b => b.onclick = () => { walkPrefs.start = +b.dataset.start; walkPrefs.at = null; walkPrefs.atLabel = null; renderWalkPlanner(); });
   body.querySelectorAll('[data-km]').forEach(b => b.onclick = () => { walkPrefs.km = +b.dataset.km; renderWalkPlanner(); });
+  body.querySelectorAll('[data-stops]').forEach(b => b.onclick = () => { walkPrefs.stops = +b.dataset.stops; renderWalkPlanner(); });
   body.querySelectorAll('[data-loop]').forEach(b => b.onclick = () => { walkPrefs.loop = b.dataset.loop === '1'; renderWalkPlanner(); });
   body.querySelector('[data-geo]')?.addEventListener('click', requestLocation);
   body.querySelector('[data-pick]').onclick = () => { pickingStart = true; walksDlg.close(); showWalkHint(); };
@@ -1165,7 +1169,7 @@ function makeWalk() {
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
   flyTo((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2, null, Math.max(600, span * 2.2));
   const u = new URL(location.href);
-  u.searchParams.set('walk', [walkPrefs.km, walkPrefs.loop ? 1 : 0, startPoint().map(Math.round).join('_'), walkPrefs.layers.join('.')].join('~'));
+  u.searchParams.set('walk', [walkPrefs.km, walkPrefs.loop ? 1 : 0, startPoint().map(Math.round).join('_'), walkPrefs.layers.join('.'), walkPrefs.stops].join('~'));
   history.replaceState(null, '', u);
 }
 function renderWalk() {
@@ -1187,7 +1191,7 @@ function renderWalk() {
       const off = !inGoogle.has(p);
       return `<li${off ? ' class="w-off"' : ''}><button data-i="${i}"><span class="w-num">${i + 1}</span><span><b>${esc(poiName(p))}</b><em>${esc(story)}</em></span></button></li>`;
     }).join('')}</ol>
-    <p class="q-credit">${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
+    <p class="q-credit">${walkPrefs.stops && w.stops.length < walkPrefs.stops ? t('Fewer stops than asked: that is all the stories you chose.') + ' ' : ''}${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
       : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}${inGoogle.size < w.stops.length
       ? ' ' + t('Google Maps takes nine stops; the paler ones lie on the way.') : ''}</p>`;
   markActions();
@@ -1215,10 +1219,10 @@ walksDlg.addEventListener('click', e => { if (e.target === walksDlg) walksDlg.cl
 {
   const q = new URLSearchParams(location.search).get('walk');
   if (q) {
-    const [km, loop, at, ls] = q.split('~');
+    const [km, loop, at, ls, ns] = q.split('~');
     const [x, z] = (at || '').split('_').map(Number);
     walkPrefs = { km: +km || 3, loop: loop !== '0', start: 0, at: Number.isFinite(x) && Number.isFinite(z) ? [x, z] : null,
-      atLabel: t('Point on the map'), layers: (ls || '').split('.').filter(id => layers.some(L => L.id === id)) };
+      atLabel: t('Point on the map'), stops: +ns || 0, layers: (ls || '').split('.').filter(id => layers.some(L => L.id === id)) };
     setTimeout(makeWalk, 0);
   }
 }

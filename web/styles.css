@@ -223,10 +223,6 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 
 /* Quests. The one playful thing on the page: Delft tiles. Each quest is a tile with painted corners, the score is
    counted in tiles, and a found building gets a blue stamp. */
-.modes .quests-open { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; background: var(--accent);
-  color: var(--paper); }
-.modes .quests-open svg { width: 13px; height: 13px; fill: currentColor; }
-.modes .quests-open:hover { filter: brightness(1.15); }
 .q-tiles { display: inline-flex; gap: 2px; vertical-align: -1px; }
 .q-tiles i { width: 9px; height: 9px; border-radius: 2px; border: 1.5px solid var(--accent); background: transparent; }
 .q-tiles i.on { background: var(--accent); }
@@ -318,16 +314,12 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
   .quests .q-lede { display: none; }
   .q-tile p { display: none; }
   .q-tile { padding: 12px 11px 10px; }
-  .modes .quests-open { order: -1; margin: 0 4px 0 0; }
-}
+  }
 @media (prefers-reduced-motion: reduce) { .quest .q-feedback.miss, .q-stamp { animation: none; } }
 
 @media (min-width: 721px) and (max-width: 960px) { .quests .q-grid { grid-template-columns: repeat(4, 1fr); } }
 
 /* Walks: the planner is a dialog of chips; the walk itself is a card like a quest's, with numbered stops. */
-.modes .walks-open { display: inline-flex; align-items: center; gap: 6px; margin-left: 4px; background: var(--paper);
-  color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.modes .walks-open svg { width: 13px; height: 13px; fill: currentColor; }
 .walks { width: min(720px, calc(100vw - 32px)); }
 .walks article { padding: 22px 26px 24px; }
 .walks h2 { margin: 0; }
@@ -362,8 +354,7 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .quest.walk .q-credit { padding: 0 16px 12px; }
 @media (max-width: 720px) {
   .quest.walk { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); max-height: 46vh; }
-  .modes .walks-open { order: -1; margin: 0 4px 0 0; }
-}
+  }
 .quest.walk header { cursor: pointer; }
 .quest.walk.folded .w-stops, .quest.walk.folded .q-credit { display: none; }
 
@@ -384,7 +375,6 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .focusbox li small { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
 .focusbox .f-back { display: inline-block; margin: 10px 16px 0; font-size: 12px; color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 3px; }
 @media (max-width: 720px) {
-  .modes .graph-open { order: -1; padding: 8px 14px; }
   .focusbox { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); }
 }
 .w-locate { margin-bottom: 8px; }
@@ -401,6 +391,11 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .modes .modes-sep { flex: none; width: 1px; align-self: stretch; margin: 6px 6px; background: var(--rule); }
 @media (max-width: 720px) {
   /* On a phone the actions come first, then the divider, then the colourings. */
-  .modes button[data-mode] { order: 1; }
-  .modes .modes-sep { order: 0; margin: 6px 2px; }
 }
+/* One look for every item in the bar: plain text, an icon for the things to do, black when it is on. */
+.modes .walks-open, .modes .quests-open, .modes .graph-open { display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 999px; color: var(--ink); background: none; text-decoration: none; font-weight: 500; }
+.modes .walks-open svg, .modes .quests-open svg { width: 13px; height: 13px; fill: currentColor; }
+.modes button:not([aria-pressed="true"]):hover, .modes .graph-open:hover { background: var(--sky); }
+.modes .walks-open[aria-pressed="true"], .modes .quests-open[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+@media (max-width: 720px) { .modes .walks-open, .modes .quests-open, .modes .graph-open { padding: 8px 14px; } }

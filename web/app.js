@@ -731,7 +731,12 @@ function startQuest(q, n, sc = 0) {
   renderQuest();
 }
 function resetStep() { hintsShown = 0; solved = false; misses = 0; revealed = false; questFolded = false; }
-function closeQuest() { quest = null; questEl.hidden = true; }
+function closeQuest() { quest = null; questEl.hidden = true; markActions(); }
+// Walk and Quests show as on while a walk or a quest is open.
+function markActions() {
+  document.querySelector('.walks-open').setAttribute('aria-pressed', String(!!walkRoute));
+  document.querySelector('.quests-open').setAttribute('aria-pressed', String(!!quest));
+}
 function setModeNamed(name) {
   if (name === 'floors' || name === 'energy') { setBuildingView(MODE[name]); return; }
   const m = { period: MODE.period, layers: MODE.layers }[name];
@@ -798,6 +803,7 @@ function renderQuest() {
          ${s.answer.bags ? `<button class="q-reveal">${t('Show me')}</button>` : ''}
          <span class="q-worth">${tiles(stepTiles(), 3)}</span>`}</div>`;
   questEl.hidden = false;
+  markActions();
   // On a phone the riddle folds to its title bar so the map stays usable; a tap on the bar opens it again.
   questEl.querySelector('header').onclick = () => { questFolded = !questFolded; questEl.classList.toggle('folded', questFolded); };
   questEl.querySelector('.q-close').onclick = closeQuest;
@@ -1184,7 +1190,8 @@ function renderWalk() {
     <p class="q-credit">${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
       : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}${inGoogle.size < w.stops.length
       ? ' ' + t('Google Maps takes nine stops; the paler ones lie on the way.') : ''}</p>`;
-  walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null);
+  markActions();
+  walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null); markActions();
     const u = new URL(location.href); u.searchParams.delete('walk'); history.replaceState(null, '', u); };
   walkEl.querySelector('.w-change').onclick = openWalks;
   walkEl.querySelector('.w-kml').onclick = () => downloadKml(w);

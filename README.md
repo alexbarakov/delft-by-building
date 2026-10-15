@@ -44,7 +44,7 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 uv sync
 # raw inputs: the 3D BAG tiles listed in data/raw/tiles_needed.csv, the PDOK boundary, then the s00_* fetchers
 for s in s00_fetch_registers s00_fetch_addresses s00_fetch_water s00_fetch_energy s01_load s01b_monuments \
-         s02_attributes s01c_roofs s01d_spires s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water s12_quests s13_graph; do
+         s02_attributes s01c_roofs s01d_spires s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water s12_quests s13_graph s13_search; do
   uv run python -m pipeline.$s
 done
 python3 -m http.server 8644 --directory web

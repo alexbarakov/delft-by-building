@@ -33,14 +33,14 @@ const NL_UI = {
   'Wikidata records this building as their place of work.': 'Volgens Wikidata werkte deze persoon hier.',
   'Wikidata records this building as their birthplace.': 'Volgens Wikidata werd deze persoon hier geboren.',
   'Wikidata records this building as the place where they died.': 'Volgens Wikidata overleed deze persoon hier.',
-  'Period': 'Periode', 'Context layers': 'Contextlagen', 'Floors': 'Verdiepingen', 'Energy': 'Energie',
+  'Period': 'Periode', 'Layers': 'Lagen', 'Floors': 'Verdiepingen', 'Energy': 'Energie',
   'buildings': 'gebouwen', 'Building the city': 'De stad wordt gebouwd',
   'Drag to turn. Right-drag or Shift-drag to move. Scroll to zoom.': 'Sleep om te draaien. Rechts slepen of Shift-slepen om te verschuiven. Scroll om te zoomen.',
   'Show legend': 'Legenda tonen', 'Hide legend': 'Legenda verbergen',
   'Built in': 'Gebouwd in', 'Click a period to see it alone. Paler buildings have an approximate year.': 'Klik op een periode om alleen die te zien. Lichtere gebouwen hebben een geschat bouwjaar.',
   'Storeys': 'Verdiepingen', 'Energy label': 'Energielabel',
   'RVO energy labels, via Atlas Leefomgeving': 'Energielabels van RVO, via Atlas Leefomgeving',
-  'All context layers': 'Alle contextlagen', 'Find a person': 'Zoek een persoon', 'Buildings and their stories': 'Gebouwen en hun verhalen',
+  'All layers': 'Alle lagen', 'Find a person': 'Zoek een persoon', 'Buildings and their stories': 'Gebouwen en hun verhalen',
   'Height': 'Hoogte', 'from the 3D BAG model': 'uit het 3D BAG-model', 'height ÷ 3.2 m': 'hoogte ÷ 3,2 m',
   'Architect': 'Architect', 'Architects': 'Architecten', 'Style': 'Stijl', 'National monument': 'Rijksmonument',
   'In layers': 'In lagen', 'Dating': 'Datering', 'Read more': 'Meer lezen', 'From the street': 'Vanaf de straat',
@@ -1316,14 +1316,14 @@ function renderPanel() {
       renderPanel(); drawHist();
     });
   } else if (mode === MODE.floors) {
-    panel.innerHTML = `<button class="back">${t('All context layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Storeys')}</h2>
+    panel.innerHTML = `<button class="back">${t('All layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Storeys')}</h2>
       <div class="ramp" style="background:linear-gradient(90deg,#dbe3e6,#7da8bf,#2b5c8c,#0d1a40)"></div>
       <div class="ramp-scale"><span>1</span><span>3</span><span>8</span><span>20</span><span>40+</span></div>
       <p class="note">${LANG === 'nl' ? `${fmt(config.stats.floorsBag3d)} gebouwen krijgen hun verdiepingen uit het 3D BAG-model; de rest, ${fmt(config.stats.floorsHeight)}, uit hun hoogte gedeeld door 3,2 m.` : `${fmt(config.stats.floorsBag3d)} buildings take their storeys from the 3D BAG model; the rest, ${fmt(config.stats.floorsHeight)}, from their height divided by 3.2 m.`}</p>`;
     panel.querySelector('.back').onclick = backToLayers;
   } else if (mode === MODE.energy) {
     const e = config.energy;
-    panel.innerHTML = `<button class="back">${t('All context layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Energy label')}</h2><div class="energy-scale">${e.labels.map((l, i) => `
+    panel.innerHTML = `<button class="back">${t('All layers')}</button><h2 class="layer-title">${sectionIcon('Buildings today')}${t('Energy label')}</h2><div class="energy-scale">${e.labels.map((l, i) => `
       <div><i style="background:${ENERGY_COLORS[i + 1]}"></i><span>${l}</span><span class="n">${fmt(e.counts[i + 1])}</span></div>`).reverse().join('')}</div>
       <p class="note">${LANG === 'nl' ? `Het label dat de meeste woningen in een gebouw hebben. ${fmt(e.counts[0])} gebouwen, wit op de kaart, hebben geen geregistreerd label.` : `The label most homes in a building carry. ${fmt(e.counts[0])} buildings, white on the map, have no registered label.`}</p>
       <a class="src" href="https://www.atlasleefomgeving.nl/energielabels-van-gebouwen" target="_blank" rel="noopener">${t('RVO energy labels, via Atlas Leefomgeving')}</a>`;
@@ -1332,7 +1332,7 @@ function renderPanel() {
     const notes = Object.entries(residentsLayer?.notes || {});
     const people = notes.flatMap(([bag, n]) => n.people.map(p => ({ ...p, bag, at: n.at })))
       .sort((a, b) => b.links - a.links);
-    panel.innerHTML = `<button class="back">${t('All context layers')}</button><h2 class="layer-title">${esc(tr(residentsLayer, 'title'))}</h2>
+    panel.innerHTML = `<button class="back">${t('All layers')}</button><h2 class="layer-title">${esc(tr(residentsLayer, 'title'))}</h2>
       <p class="layer-intro">${esc(tr(residentsLayer, 'text') || '')}</p>
       <input class="filter" type="search" placeholder="${t('Find a person')}" aria-label="${t('Find a person')}">
       <ul class="stories people">${people.map(p => `<li data-q="${esc((p.person + ' ' + (p.desc || '')).toLowerCase())}">
@@ -1353,7 +1353,7 @@ function renderPanel() {
   } else if (!activeLayer) {
     const sections = [...new Set(contextLayers.map(L => L.section))].sort((a, b) => SECTION_ORDER.indexOf(a) - SECTION_ORDER.indexOf(b));
     const secTitle = sec => tr(contextLayers.find(L => L.section === sec), 'section');
-    panel.innerHTML = `<nav class="jump" aria-label="${t('Context layers')}">${sections.map(sec => `
+    panel.innerHTML = `<nav class="jump" aria-label="${t('Layers')}">${sections.map(sec => `
       <button data-sec="${esc(sec)}" title="${esc(secTitle(sec))}" aria-label="${esc(secTitle(sec))}">${sectionIcon(sec)}</button>`).join('')}</nav>` +
       sections.map(sec => `<h2 class="section" id="sec-${sec.replace(/\W+/g, '-')}">${sectionIcon(sec)}${esc(secTitle(sec))}</h2><div class="layers">${contextLayers.filter(L => L.section === sec).map(L => `
       <button class="layer" data-id="${L.id}">
@@ -1369,9 +1369,12 @@ function renderPanel() {
     panel.insertAdjacentHTML('beforeend', `<p class="contribute"><a href="https://github.com/alexbarakov/delft-by-building/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">${t('Add a layer on GitHub')}</a></p>`);
     panel.querySelectorAll('.jump button').forEach(b => b.onclick = () =>
       panel.querySelector(`#sec-${b.dataset.sec.replace(/\W+/g, '-')}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-    panel.querySelectorAll('.layer:not(.view)').forEach(b => b.onclick = () => setLayer(contextLayers.find(l => l.id === b.dataset.id)));
+    panel.querySelectorAll('.layer:not(.view)').forEach(b => b.onclick = () => {
+      const L = contextLayers.find(l => l.id === b.dataset.id);
+      setLayer(L); fitToLayer(L);
+    });
   } else {
-    panel.innerHTML = `<button class="back">${t('All context layers')}</button>
+    panel.innerHTML = `<button class="back">${t('All layers')}</button>
       <h2 class="layer-title">${sectionIcon(activeLayer.section)}${esc(tr(activeLayer, 'title'))}</h2><p class="layer-era">${esc(tr(activeLayer, 'era'))}</p>${layerDetail(activeLayer)}`;
     panel.querySelector('.back').onclick = () => setLayer(null);
     panel.querySelectorAll('.story').forEach(b => b.onclick = () => {
@@ -1384,7 +1387,7 @@ function renderPanel() {
     });
     panel.querySelectorAll('.swatch').forEach(b => b.onclick = () => {
       groupOn[b.dataset.bit] = groupOn[b.dataset.bit] === false;
-      setLayer(activeLayer);
+      setLayer(activeLayer); fitToLayer(activeLayer);
     });
   }
 }
@@ -1402,6 +1405,34 @@ function layerDetail(L) {
   return `<div class="layer-detail"><p>${esc(tr(L, 'text'))}</p>${groups}${stories}
     ${L.caveat ? `<p class="caveat">${esc(tr(L, 'caveat'))}</p>` : ''}
     <a href="${L.source.url}" target="_blank" rel="noopener">${esc(tr(L.source, 'label'))}</a></div>`;
+}
+
+// After a layer is chosen the camera frames its buildings: the box of their centres, trimmed of the outermost 2 %
+// when there are many, so one far-off building does not pull the view out of town.
+function fitToLayer(L) {
+  if (!L) return;
+  const bits = L.groups.filter(g => groupOn[g.bit] !== false).map(g => g.bit);
+  if (!bits.length) return;
+  const xs = [], zs = [], n = config.stats.buildings, st = config.attrStride;
+  for (let gid = 0; gid < n; gid++) {
+    const o = gid * st, lay0 = attrs.getUint32(o + 20, true), lay1 = attrs.getUint32(o + 24, true);
+    if (bits.some(b => b < 32 ? (lay0 >>> b) & 1 : (lay1 >>> (b - 32)) & 1)) {
+      xs.push(attrs.getFloat32(o + 36, true)); zs.push(attrs.getFloat32(o + 40, true));
+    }
+  }
+  if (!xs.length) return;
+  const cut = a => { a.sort((p, q) => p - q); const k = a.length > 50 ? Math.floor(a.length * 0.02) : 0; return [a[k], a[a.length - 1 - k]]; };
+  const [x0, x1] = cut(xs), [z0, z1] = cut(zs);
+  // On a wide screen the panel covers the left of the view: frame the points in the part to its right.
+  const pr = !phone.matches && !panelEl.classList.contains('collapsed') ? panelEl.getBoundingClientRect().right : 0;
+  const free = Math.max(0.4, 1 - pr / innerWidth);
+  const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const span = Math.max(z1 - z0, (x1 - x0) / (camera.aspect * free), 120);
+  const distance = Math.min(7000, Math.max(320, span / 2 / half * 1.35));
+  const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+  const shift = (pr / innerWidth / 2) * 2 * distance * half * camera.aspect;
+  const cx = (x0 + x1) / 2 - right.x * shift, cz = (z0 + z1) / 2 - right.z * shift;
+  if (Number.isFinite(cx) && Number.isFinite(cz) && Number.isFinite(distance)) flyTo(cx, cz, null, distance);
 }
 
 function setLayer(L) {
@@ -1559,10 +1590,10 @@ function applyStaticText() {
   document.documentElement.lang = LANG;
   document.querySelector('.dek').textContent = t('Every building standing today, by age and historical context.');
   document.querySelector('.about-open').textContent = t('About');
-  document.querySelector('.quests-open span').textContent = t('Quests');
+  document.querySelector('.quests-open span').textContent = LANG === 'nl' ? 'Raadsels' : 'Quests';  // short, so the bar fits a phone
   document.querySelector('.graph-open span').textContent = t('Graph');
   document.querySelector('.graph-open').href = LANG === 'nl' ? 'graph.html?lang=nl' : 'graph.html';
-  document.querySelector('.walks-open span').textContent = t('Walk');
+  document.querySelector('.walks-open span').textContent = LANG === 'nl' ? 'Route' : 'Walk';
   document.querySelectorAll('[data-lang-block]').forEach(a => { a.hidden = a.dataset.langBlock !== LANG; });
   document.querySelectorAll('.modes button[data-mode]').forEach(b => { b.textContent = t(b.dataset.label); });
   document.querySelector('.tally-count').childNodes[1].textContent = ' ' + t('buildings');
@@ -1622,4 +1653,4 @@ renderer.setAnimationLoop(now => {
 });
 
 
-window.__dbg = { walkKml, googleUrl, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };
+window.__dbg = { fitToLayer, walkKml, googleUrl, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };

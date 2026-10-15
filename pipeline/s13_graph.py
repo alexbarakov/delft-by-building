@@ -13,6 +13,7 @@ import pandas as pd
 
 from .city import ORIGIN
 from .ontology import ENTITIES, PERSON
+MAX_ARCHITECTS = 20
 
 
 def main():
@@ -72,6 +73,15 @@ def main():
         if known and rid not in have:
             continue
         links.append(dict(e=rid, bag=r["bag"], text=r["quote"], text_nl=r["quote"], source=r["url"], via="Who lived here"))
+
+    # At most MAX_ARCHITECTS architects, those with the most buildings in the graph; the rest drop out with their links.
+    arch_deg = {}
+    for l in links:
+        if any(n["id"] == l["e"] and n["type"] == "architect" for n in nodes):
+            arch_deg.setdefault(l["e"], set()).add(l["bag"])
+    keep = set(sorted(arch_deg, key=lambda a: -len(arch_deg[a]))[:MAX_ARCHITECTS])
+    nodes = [n for n in nodes if n["type"] != "architect" or n["id"] in keep]
+    links = [l for l in links if l["e"] not in arch_deg or l["e"] in keep]
 
     # Places: the buildings of one name (a hofje of eight houses, a church of two panden) become one node.
     wiki = json.load(open("web/data/wiki.json"))

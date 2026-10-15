@@ -66,7 +66,7 @@ const NL_UI = {
   'You seem to be outside the city, so the walk starts at the Markt.': 'Je lijkt buiten de stad te zijn, dus de wandeling begint op de Markt.',
   'The location was not shared. Pick a start on the map instead.': 'De locatie werd niet gedeeld. Kies het begin op de kaart.',
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
-  'about {m} min': 'ongeveer {m} min', 'Google Maps, part {i} of {n}': 'Google Maps, deel {i} van {n}', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
+  'about {m} min': 'ongeveer {m} min', 'Google Maps, part {i} of {n}': 'Google Maps, deel {i} van {n}', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
@@ -944,11 +944,24 @@ function planWalkWithGap({ layers: chosen, km, loop }, start, gap) {
     score: route.reduce((n, p) => n + (p.score || 0), 0) };
 }
 // A wide spacing first; when the chosen stories are few and close together, tighter spacings keep them all.
-function planWalk(prefs, start) {
+function planAtLength(prefs, start) {
   const wide = Math.min(400, Math.max(30, prefs.km * 1000 / DETOUR / (MAX_STOPS * 2.2)));
   const plans = [wide, wide / 2, wide / 4, 25].map(g => planWalkWithGap(prefs, start, g));
   const most = Math.max(...plans.map(p => p.stops.length));
   return plans.find(p => p.stops.length >= most);  // the widest spacing that loses no stop
+}
+// A walk with one or two stops is not a walk: when the chosen stories lie further away than the distance allows,
+// the distance grows (up to three times) until there are a few of them, and the card says so.
+const MIN_STOPS = 4;
+function planWalk(prefs, start) {
+  const available = pois().filter(p => poiScore(p, prefs.layers) > 0).length;
+  const want = Math.min(MIN_STOPS, available);
+  let w = planAtLength(prefs, start);
+  for (let k = 1.25; w.stops.length < want && k <= 3.01; k += 0.25) {
+    w = planAtLength({ ...prefs, km: prefs.km * k }, start);
+    w.stretched = true;
+  }
+  return w;
 }
 function googleUrls(w) {
   const ll = p => toLatLon(p.x, p.z).map(v => v.toFixed(6)).join(',');
@@ -1114,7 +1127,8 @@ function renderWalk() {
     <div class="q-actions">${googleUrls(w).map((g, i, all) => `<a class="w-google" href="${esc(g.url)}" target="_blank" rel="noopener">${all.length > 1
       ? t('Google Maps, part {i} of {n}').replace('{i}', i + 1).replace('{n}', all.length) : t('Open in Google Maps')}</a>`).join('')}
       <button class="w-change">${t('Change')}</button></div>
-    <p class="q-credit">${w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}</p>`;
+    <p class="q-credit">${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
+      : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}</p>`;
   walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null);
     const u = new URL(location.href); u.searchParams.delete('walk'); history.replaceState(null, '', u); };
   walkEl.querySelector('.w-change').onclick = openWalks;

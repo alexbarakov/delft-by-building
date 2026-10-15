@@ -1214,14 +1214,18 @@ function walkFromLayer(L) {
   makeWalk();
 }
 function walkFromGroups(groups) {
-  const custom = groups.map(g => {
-    const pts = g.gids.map(building);
-    const x = pts.reduce((a, b) => a + b.x, 0) / pts.length, z = pts.reduce((a, b) => a + b.z, 0) / pts.length;
-    const own = pois().find(p => g.gids.includes(gidOf(p.bag)));
-    const w = wiki[pts[0].wk];
-    return { bag: pts[0].bag, bags: pts.map(b => b.bag), x, z, name: g.label, notes: own ? own.notes : [],
-      score: 1 + (w?.image ? 0.4 : 0) };
-  }).filter(p => Number.isFinite(p.x));
+  // One stop per building of the selection: a story's stop where it has one, else the building under the name of
+  // its graph group (a person's several houses become several stops). Neighbours closer than 25 m merge later.
+  const seen = new Set(), custom = [];
+  for (const g of groups) for (const gid of g.gids) {
+    const b = building(gid), own = pois().find(p => p.bags.includes(b.bag));
+    const key = own ? own.bag : b.bag;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const w = wiki[b.wk];
+    custom.push(own ? { ...own, score: 1.5 + (w?.image ? 0.4 : 0) }
+      : { bag: b.bag, bags: [b.bag], x: b.x, z: b.z, name: (w && tr(w, 'label')) || g.label, notes: [], score: 1 + (w?.image ? 0.4 : 0) });
+  }
   walkPrefs = { ...walkPrefs, custom, stops: Math.min(MAX_STOPS, custom.length) };
   makeWalk();
 }

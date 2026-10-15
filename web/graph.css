@@ -68,11 +68,19 @@ a { color: inherit; }
 .g-svg:active { cursor: grabbing; }
 .g-svg .link { stroke: #9aa3ab; stroke-opacity: .55; }
 .g-svg .node { cursor: pointer; }
-.g-svg .node text { font-size: 11px; paint-order: stroke; stroke: var(--sky); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
-.g-svg .node.entity text { font-weight: 600; font-size: 12px; }
-.g-svg .node.place text { fill: #3e4448; display: none; }
-.g-svg .node.place.big text, .g-svg.focused .node.place.near text { display: block; }
-.g-svg .node.selected circle, .g-svg .node.selected rect { stroke: var(--ink); stroke-width: 2.5px; }
+.g-svg .node text { paint-order: stroke; stroke: var(--sky); stroke-width: 4px; stroke-linejoin: round; pointer-events: none;
+  fill: var(--ink); }
+.g-svg .node.entity.t1 text { font-size: 15px; font-weight: 800; letter-spacing: -0.01em; stroke-width: 5px; }
+.g-svg .node.entity.t2 text { font-size: 12.5px; font-weight: 600; }
+.g-svg .node.entity.t3 text { font-size: 11px; font-weight: 500; fill: #4b5560; display: none; }
+.g-svg.close .node.entity.t3 text, .g-svg .node.entity.t3.near text, .g-svg .node.entity.t3:hover text { display: block; }
+.g-svg .node.entity.t1 circle { stroke: var(--paper); stroke-width: 2.5px; }
+.g-svg .node.entity.t3 circle { opacity: .75; }
+.g-svg .node.place text { font-size: 10.5px; fill: #3e4448; display: none; }
+.g-svg .node.place.big text, .g-svg.focused .node.place.near text, .g-svg.close .node.place text { display: block; }
+.g-svg .node text.clash { visibility: hidden; }
+.g-svg .node.near text.clash, .g-svg .node:hover text.clash, .g-svg.close .node text.clash { visibility: visible; }
+.g-svg .node.selected circle, .g-svg .node.selected rect { stroke: var(--ink); stroke-width: 3px; }
 .g-svg.focused .node:not(.near) { opacity: .16; }
 .g-svg.focused .link:not(.near) { stroke-opacity: .06; }
 .g-svg.focused .link.near { stroke: var(--ink); stroke-opacity: .7; }

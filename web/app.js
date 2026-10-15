@@ -82,6 +82,11 @@ const NL_UI = {
   'Not this one. Far off.': 'Dit is hem niet. Ver weg.', 'A hint may help.': 'Een hint kan helpen.',
   'Today’s photo of the building to find': 'Foto van vandaag van het gebouw dat je zoekt',
   'From the graph': 'Uit de graaf', 'Back to the graph': 'Terug naar de graaf', 'Graph': 'Graaf',
+  'Search a building, address or street': 'Zoek een gebouw, adres of straat', 'Address': 'Adres', 'Building': 'Gebouw',
+  'Lived here': 'Woonde hier', 'Street': 'Straat', 'Nothing found': 'Niets gevonden', 'Side by side': 'Naast elkaar', 'Clear': 'Wissen',
+  '{n} is not in the register; nearest on the same side': '{n} staat niet in het register; het dichtstbijzijnde nummer aan dezelfde kant',
+  'Back to the map': 'Terug naar de kaart', 'Stand in the street': 'Sta in de straat', 'Forward': 'Vooruit', 'Back': 'Terug',
+  'Drag to look around. Walk with W, A, S, D or the arrows; hold Shift to run.': 'Sleep om rond te kijken. Loop met W, A, S, D of de pijltjes; houd Shift ingedrukt om te rennen.',
   'Before 1536': 'Vóór 1536', '1536–1653 After the great fire': '1536–1653 Na de stadsbrand',
   '1654–1799 After the thunderclap': '1654–1799 Na de Delftse donderslag', '1864–1913 Polytechnic and factories': '1864–1913 Polytechnische School en fabrieken',
 };
@@ -254,9 +259,19 @@ const uniforms = {
   uFocus: { value: Array(FOCUS_MAX).fill(-1) },      // buildings opened from the graph, and the colour of each
   uFocusGroup: { value: Array(FOCUS_MAX).fill(0) },
   uFocusN: { value: 0 },
+  // Search and street rows: per building [target x, target z, lit, turn] and [centre x, centre z], world metres.
+  uPick: { value: null },
+  uPickOn: { value: 0 },                           // 1 while something found is lit and the rest dims
+  uRowOnly: { value: 0 },                          // 1 while a street stands in a row: everything else is hidden
+  uMorph: { value: 0 },                            // 0 in place, 1 in the row
   uFogColor: { value: col(SKY) },
   uFog: { value: new THREE.Vector2(9000, 26000) },
 };
+
+const PICK_ROWS = Math.ceil(config.stats.buildings / ATTR_W);
+const pickData = new Float32Array(ATTR_W * 2 * PICK_ROWS * 4);
+const pickTex = new THREE.DataTexture(pickData, ATTR_W * 2, PICK_ROWS, THREE.RGBAFormat, THREE.FloatType);
+uniforms.uPick.value = pickTex;
 
 const VERT = /* glsl */`
   in float bld;
@@ -271,6 +286,8 @@ const VERT = /* glsl */`
   uniform float uFocus[${FOCUS_MAX}];
   uniform int uFocusGroup[${FOCUS_MAX}];
   uniform int uFocusN;
+  uniform sampler2D uPick;
+  uniform float uPickOn, uRowOnly, uMorph;
   out vec3 vColor;
   out vec3 vWorld;
   out float vGid;
@@ -347,8 +364,23 @@ const VERT = /* glsl */`
     }
     if (year <= uYearFrom) c = mix(c, uMaquette, 0.8);
     if (vGid == uHover || vGid == uSelected) c = mix(c, vec3(0.0), 0.35);
-    vColor = c;
     vec4 w = modelMatrix * vec4(p, 1.0);
+    if (uPickOn > 0.5) {
+      int gi = int(vGid + 0.5);
+      vec4 pk = texelFetch(uPick, ivec2(2 * (gi % ${ATTR_W}), gi / ${ATTR_W}), 0);
+      if (pk.z > 0.5) {
+        // a lit building turns about its own centre and moves to its place in the row
+        vec2 cen = texelFetch(uPick, ivec2(2 * (gi % ${ATTR_W}) + 1, gi / ${ATTR_W}), 0).xy;
+        float an = pk.w * uMorph, cs = cos(an), sn = sin(an);
+        vec2 d = w.xz - cen;
+        w.xz = vec2(d.x * cs - d.y * sn, d.x * sn + d.y * cs) + mix(cen, pk.xy, uMorph);
+      } else if (uRowOnly > 0.5) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return;
+      } else {
+        c = mix(c, uMaquette, 0.78);
+      }
+    }
+    vColor = c;
     vWorld = w.xyz;
     gl_Position = projectionMatrix * viewMatrix * w;
   }
@@ -576,7 +608,8 @@ function cardHtml(gid, pinned) {
     ${inLayers ? `<section><h4>${t('In layers')}</h4><ul class="chips">${inLayers}</ul></section>` : ''}
     <section><dl>${facts.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></section>
     ${dating ? `<section><h4>${t('Dating')}</h4><p class="why">${dating}</p></section>` : ''}
-    ${pinned ? `<section class="sources"><h4>${t('Read more')}</h4><p>${sources.join(', ')}</p></section>`
+    ${pinned ? `<section class="sources"><h4>${t('Read more')}</h4><p>${sources.join(', ')}</p>
+      <button class="card-street">${t('Stand in the street')}</button></section>`
       : `<p class="hint">${w?.wiki || b.groups.some(g => g.layer.notes?.[b.bag]) ? t('Click for the story and sources') : t('Click to keep this card open')}</p>`}`;
 }
 
@@ -623,6 +656,7 @@ function pinCard(gid, x, y) {
   loadStreetViews(0);
   card.hidden = false;
   card.querySelector('.card-close').onclick = () => pinCard(-1);
+  card.querySelector('.card-street')?.addEventListener('click', () => enterStreet(gid));
   card.querySelector('img')?.addEventListener('load', () => placeCard(x, y));
   placeCard(x, y);
 }
@@ -1619,10 +1653,306 @@ function resize() {
   drawHist();
 }
 addEventListener('resize', resize);
+// ---------- Search, street rows, street view ----------
+// The index (pipeline/s13_search.py) loads on the first use of the search box.
+let index = null;
+const normal = s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+function loadIndex() {
+  index ??= fetch('data/search.json').then(r => r.json()).then(d => {
+    d.streets.forEach(st => { st.key = normal(st.n); });
+    d.names.forEach(n => { n.key = normal(n[0]); n.keyNl = n[1] ? normal(n[1]) : null; });
+    return d;
+  });
+  return index;
+}
+const findInput = document.getElementById('find-input');
+const findList = document.getElementById('find-results');
+const findSel = document.getElementById('find-sel');
+let results = [], active = -1;
+
+function search(q, d) {
+  const k = normal(q);
+  if (k.length < 2) return [];
+  const out = [];
+  const m = k.match(/^(.*\D)\s*(\d+)\s*([a-z]?)$/);
+  if (m) {
+    const want = +m[2], letter = m[3] || '', sk = m[1].trim();
+    const streets = d.streets.filter(st => st.key.startsWith(sk)).concat(d.streets.filter(st => !st.key.startsWith(sk) && st.key.includes(sk)));
+    for (const st of streets.slice(0, 4)) {
+      const exact = st.a.find(a => a[0].toLowerCase() === `${want}${letter}`) || st.a.find(a => parseInt(a[0]) === want);
+      if (exact) { out.push({ kind: 'address', label: `${st.n} ${exact[0]}`, gid: exact[1], street: st }); continue; }
+      // not in the register: the nearest number on the same side of the street
+      const same = st.a.filter(a => parseInt(a[0]) % 2 === want % 2);
+      const near = same.sort((p, q) => Math.abs(parseInt(p[0]) - want) - Math.abs(parseInt(q[0]) - want))[0];
+      if (near) out.push({ kind: 'address', label: `${st.n} ${near[0]}`, gid: near[1], street: st,
+        note: t('{n} is not in the register; nearest on the same side').replace('{n}', `${st.n} ${want}${letter}`) });
+    }
+  }
+  const named = d.names.filter(n => n.key.includes(k) || n.keyNl?.includes(k))
+    .sort((p, q) => (q.key.startsWith(k) || q.keyNl?.startsWith(k)) - (p.key.startsWith(k) || p.keyNl?.startsWith(k)));
+  for (const n of named.slice(0, 5)) out.push({ kind: n[3], label: LANG === 'nl' && n[1] ? n[1] : n[0], gid: n[2] });
+  if (!m) {
+    const streets = d.streets.filter(st => st.key.startsWith(k)).concat(d.streets.filter(st => !st.key.startsWith(k) && st.key.includes(k)));
+    for (const st of streets.slice(0, 4)) out.push({ kind: 'street', label: st.n, street: st });
+  }
+  return out.slice(0, 8);
+}
+const KIND = { address: 'Address', building: 'Building', person: 'Lived here', street: 'Street' };
+function renderResults() {
+  findList.innerHTML = results.map((r, i) => `<li role="option" data-i="${i}" aria-selected="${i === active}">
+    <b>${esc(r.label)}</b><span>${t(KIND[r.kind])}${r.kind === 'street' ? ` · ${fmt(r.street.row.length || r.street.a.length)} ${t('buildings')}` : ''}</span>
+    ${r.note ? `<em>${esc(r.note)}</em>` : ''}</li>`).join('') || (findInput.value.trim().length > 1 ? `<li class="none">${t('Nothing found')}</li>` : '');
+  findList.hidden = !findList.innerHTML;
+  findInput.setAttribute('aria-expanded', String(!findList.hidden));
+  findList.querySelectorAll('[data-i]').forEach(li => li.onmousedown = e => { e.preventDefault(); choose(results[+li.dataset.i]); });
+}
+findInput.addEventListener('focus', loadIndex);
+findInput.addEventListener('input', async () => {
+  const d = await loadIndex();
+  results = search(findInput.value, d); active = results.length ? 0 : -1;
+  renderResults();
+});
+findInput.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (results.length) active = (active + (e.key === 'ArrowDown' ? 1 : -1) + results.length) % results.length;
+    renderResults();
+  } else if (e.key === 'Enter' && results[active]) { choose(results[active]); }
+  else if (e.key === 'Escape') { findList.hidden = true; findInput.blur(); }
+  e.stopPropagation();
+});
+findInput.addEventListener('blur', () => setTimeout(() => { findList.hidden = true; }, 150));
+
+// What the search found stays lit while the rest of the city dims.
+let found = null;
+function setLit(gids) {
+  pickData.fill(0);
+  for (const g of gids) {
+    const b = building(g), o = (Math.floor(g / ATTR_W) * ATTR_W * 2 + (g % ATTR_W) * 2) * 4;
+    pickData.set([b.x, b.z, 1, 0, b.x, b.z, 0, 0], o);
+  }
+  pickTex.needsUpdate = true;
+  uniforms.uPickOn.value = gids.length ? 1 : 0;
+}
+function clearFound() {
+  if (rowStreet) closeRow(true);
+  found = null; findSel.hidden = true; setLit([]); orbit = false;
+}
+function choose(r) {
+  findList.hidden = true; findInput.blur();
+  findInput.value = r.label;
+  found = r;
+  if (r.kind === 'street') {
+    const gids = [...new Set(r.street.a.map(a => a[1]))];
+    setLit(gids);
+    const bs = gids.map(building), xs = bs.map(b => b.x), zs = bs.map(b => b.z);
+    const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 150);
+    flyTo((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2, null, Math.min(5000, span * 1.5));
+  } else {
+    setLit([r.gid]);
+    const b = building(r.gid);
+    flyTo(b.x, b.z, () => { pinCard(r.gid, innerWidth * 0.62, innerHeight * 0.2); orbit = true; }, 300);
+  }
+  renderSel();
+}
+function renderSel() {
+  if (!found) { findSel.hidden = true; return; }
+  const st = found.street;
+  findSel.innerHTML = `<span>${esc(found.label)}</span>
+    ${found.gid !== undefined ? `<button class="sel-street">${t('Stand in the street')}</button>` : ''}
+    ${st && st.row.length > 1 ? `<button class="sel-row" aria-pressed="${rowStreet === st}">${t('Side by side')}</button>` : ''}
+    <button class="sel-clear" aria-label="${t('Clear')}">×</button>`;
+  findSel.hidden = false;
+  findSel.querySelector('.sel-street')?.addEventListener('click', () => enterStreet(found.gid));
+  findSel.querySelector('.sel-row')?.addEventListener('click', () => rowStreet === st ? closeRow() : openRow(st));
+  findSel.querySelector('.sel-clear').onclick = () => { clearFound(); findInput.value = ''; };
+}
+
+// The camera slowly circles what was found, until the viewer takes over.
+let orbit = false;
+canvas.addEventListener('pointerdown', () => { orbit = false; });
+canvas.addEventListener('wheel', () => { orbit = false; }, { passive: true });
+controls.autoRotateSpeed = 0.6;
+const orbitTick = () => { controls.autoRotate = orbit && !flight && !streetView && !rowStreet; requestAnimationFrame(orbitTick); };
+orbitTick();
+
+// ---------- Side by side: the two sides of a street in two straight rows ----------
+// Each side's buildings in house-number order, turned so the street runs left to right and every front faces the
+// viewer; the odd side in front, the even side behind it. Everything else is hidden.
+const ROW_GAP = 2, ROW_DEPTH = 45, ROW_VIEW = 320;
+let rowStreet = null, morph = null, rowSaved = null, rowLabels = [];
+const rowLabelEl = document.getElementById('row-labels');
+function stepMorph(now) {
+  if (!morph) return;
+  const k = Math.min(1, (now - morph.t0) / 1100), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+  uniforms.uMorph.value = morph.from + (morph.to - morph.from) * e;
+  if (k >= 1) { const d = morph.done; morph = null; d?.(); }
+}
+function openRow(st) {
+  const num = new Map();
+  for (const [n, g] of st.a) if (!num.has(g)) num.set(g, parseInt(n));
+  const ax = st.ax, perp = [ax[1], -ax[0]];
+  // turn the street onto the x axis
+  const phi = -Math.atan2(ax[1], ax[0]);
+  const rot = (x, z, a) => [x * Math.cos(a) - z * Math.sin(a), x * Math.sin(a) + z * Math.cos(a)];
+  const pz = rot(perp[0], perp[1], phi)[1];      // where the street's perpendicular points once turned
+  const sides = [[], []];
+  for (const [g, side, t0, t1, off] of st.row) sides[side].push({ g, w: t1 - t0, off, n: num.get(g) ?? 0 });
+  pickData.fill(0);
+  rowLabels = [];
+  const [cx, cz] = st.c;
+  sides.forEach((list, side) => {
+    list.sort((p, q) => p.n - q.n);
+    const len = list.reduce((s, b) => s + b.w + ROW_GAP, -ROW_GAP);
+    let x = -len / 2;
+    for (const b of list) {
+      const B = building(b.g);
+      // a front faces the street: from the building towards the axis, i.e. against the sign of its offset
+      const faces = -Math.sign(b.off || 1) * pz;
+      const turn = phi + (faces > 0 ? 0 : Math.PI);
+      const tx = cx + x + b.w / 2, tz = cz + (side === 1 ? 0 : -ROW_DEPTH);
+      const o = (Math.floor(b.g / ATTR_W) * ATTR_W * 2 + (b.g % ATTR_W) * 2) * 4;
+      pickData.set([tx, tz, 1, turn, B.x, B.z, 0, 0], o);
+      const w = wiki[B.wk], name = w?.label && (LANG === 'nl' ? w.label_nl || w.label : w.label);
+      // a name, not an address: Wikidata often labels a listed house by its street and number
+      // and not a register description ("Pand met eenvoudige lijstgevel ..."), which some items carry as a label
+      rowLabels.push({ x: tx, z: tz, h: B.height, n: b.n, name: name && !/\d/.test(name) && name.length <= 40 ? name : null });
+      x += b.w + ROW_GAP;
+    }
+  });
+  pickTex.needsUpdate = true;
+  uniforms.uPickOn.value = 1;
+  uniforms.uRowOnly.value = 1;
+  // buildings leave their tiles for the row: a tile out of view must still be drawn
+  for (const m of meshes) m.frustumCulled = false;
+  rowStreet = st;
+  pinCard(-1);
+  rowSaved ??= { p: camera.position.clone(), t: controls.target.clone() };
+  const len = Math.max(...sides.map(l => l.reduce((s, b) => s + b.w + ROW_GAP, 0)), 60);
+  // frame both rows in the part of the view beside the panel
+  const pr = !phone.matches && !panelEl.classList.contains('collapsed') ? panelEl.getBoundingClientRect().right : 0;
+  const free = Math.max(0.4, 1 - pr / innerWidth);
+  const half = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  // a long street opens at its first numbers, close enough to read; drag to walk along it
+  const view = Math.min(len, ROW_VIEW);
+  const dist = Math.max(110, view / 2 / (half * camera.aspect * free) * 1.08);
+  const tx = cx - len / 2 + view / 2 - (pr / innerWidth / 2) * 2 * dist * half * camera.aspect;
+  flight = { t0: performance.now(), dur: 1400, fromT: controls.target.clone(), toT: new THREE.Vector3(tx, 6, cz - ROW_DEPTH / 2),
+    fromP: camera.position.clone(), toP: new THREE.Vector3(tx, dist * 0.42, cz - ROW_DEPTH / 2 + dist * 0.9), done: null };
+  morph = { t0: performance.now(), from: uniforms.uMorph.value, to: 1 };
+  renderRowLabels();
+  renderSel();
+}
+function closeRow(quick) {
+  if (!rowStreet) return;
+  const st = rowStreet;
+  rowStreet = null; rowLabelEl.innerHTML = '';
+  const end = () => {
+    uniforms.uRowOnly.value = 0;
+    for (const m of meshes) m.frustumCulled = true;
+    if (found?.street === st) setLit([...new Set(st.a.map(a => a[1]))]); else setLit([]);
+  };
+  if (quick) { uniforms.uMorph.value = 0; end(); }
+  else morph = { t0: performance.now(), from: uniforms.uMorph.value, to: 0, done: end };
+  if (rowSaved) { flight = { t0: performance.now(), dur: 1400, fromT: controls.target.clone(), toT: rowSaved.t,
+    fromP: camera.position.clone(), toP: rowSaved.p, done: null }; rowSaved = null; }
+  renderSel();
+}
+function renderRowLabels() {
+  rowLabelEl.innerHTML = rowLabels.map(l => `<span${l.name ? ' class="named"' : ''}>${l.n || ''}${l.name ? `<b>${esc(l.name)}</b>` : ''}</span>`).join('');
+}
+const _v = new THREE.Vector3();
+function placeRowLabels() {
+  const els = rowLabelEl.children, w = innerWidth, h = innerHeight;
+  const show = uniforms.uMorph.value > 0.95;
+  // labels in a row never overlap: one that would touch the last shown in its row waits for a closer view
+  const lastX = {};
+  for (let i = 0; i < els.length; i++) {
+    const l = rowLabels[i];
+    _v.set(l.x, l.h + 2, l.z).project(camera);
+    const sx = (_v.x + 1) / 2 * w, sy = (1 - _v.y) / 2 * h;
+    const room = l.name ? 70 : 22;
+    let on = show && _v.z < 1 && Math.abs(_v.x) < 1.05 && Math.abs(_v.y) < 1.05 && !(Math.abs(sx - (lastX[l.z] ?? -1e9)) < room);
+    if (on) lastX[l.z] = sx;
+    els[i].style.transform = on ? `translate(${sx}px, ${sy}px) translate(-50%, -100%)` : 'translate(-9999px, 0)';
+  }
+}
+
+// ---------- Street view: stand in the street in front of a building ----------
+let streetView = null;
+const streetEl = document.getElementById('street');
+const keys = new Set();
+async function enterStreet(gid) {
+  const d = await loadIndex();
+  const b = building(gid);
+  let e = d.eyes[gid];
+  if (!e) { const a = Math.random() * 6.283; e = [b.x + Math.cos(a) * 25, b.z + Math.sin(a) * 25]; }
+  if (rowStreet) closeRow(true);
+  streetView = { saved: { p: camera.position.clone(), t: controls.target.clone(), near: camera.near, fov: camera.fov, lit: uniforms.uPickOn.value },
+    pos: new THREE.Vector3(e[0], 1.7, e[1]), yaw: Math.atan2(b.x - e[0], b.z - e[1]), pitch: 0.14, last: performance.now() };
+  flight = null; orbit = false;
+  controls.enabled = false;
+  // a person's field of view, and the whole city in colour around them
+  camera.near = 0.3; camera.fov = 62; camera.updateProjectionMatrix();
+  uniforms.uPickOn.value = 0;
+  pinCard(-1);
+  streetEl.hidden = false;
+  document.body.classList.add('in-street');
+}
+function exitStreet() {
+  if (!streetView) return;
+  const s = streetView.saved;
+  camera.near = s.near; camera.fov = s.fov; camera.updateProjectionMatrix();
+  camera.position.copy(s.p); controls.target.copy(s.t);
+  uniforms.uPickOn.value = s.lit;
+  streetView = null; keys.clear();
+  controls.enabled = true;
+  streetEl.hidden = true;
+  document.body.classList.remove('in-street');
+}
+function stepStreet(now) {
+  const s = streetView, dt = Math.min(0.05, (now - s.last) / 1000); s.last = now;
+  const fwd = (keys.has('KeyW') || keys.has('ArrowUp') || keys.has('pad1') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') || keys.has('pad-1') ? 1 : 0);
+  const side = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+  const turn = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0);
+  s.yaw -= turn * 1.6 * dt;
+  const speed = (keys.has('ShiftLeft') || keys.has('ShiftRight') ? 14 : 4.5) * dt;
+  const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
+  s.pos.x += (fx * fwd - fz * side) * speed; s.pos.z += (fz * fwd + fx * side) * speed;
+  camera.position.copy(s.pos);
+  const look = new THREE.Vector3(fx * Math.cos(s.pitch), Math.sin(s.pitch), fz * Math.cos(s.pitch)).add(s.pos);
+  controls.target.copy(look);
+  camera.lookAt(look);
+}
+let lookDrag = null;
+canvas.addEventListener('pointerdown', e => { if (streetView) lookDrag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { lookDrag = null; keys.delete('pad1'); keys.delete('pad-1'); });
+addEventListener('pointermove', e => {
+  if (!streetView || !lookDrag) return;
+  streetView.yaw += (e.clientX - lookDrag[0]) * 0.004;
+  streetView.pitch = Math.max(-0.6, Math.min(1.1, streetView.pitch + (e.clientY - lookDrag[1]) * 0.003));
+  lookDrag = [e.clientX, e.clientY];
+});
+canvas.addEventListener('wheel', e => { if (streetView) { const f = -Math.sign(e.deltaY) * 3; streetView.pos.x += Math.sin(streetView.yaw) * f; streetView.pos.z += Math.cos(streetView.yaw) * f; } }, { passive: true });
+addEventListener('keydown', e => {
+  if (!streetView) return;
+  if (e.key === 'Escape') { exitStreet(); return; }
+  keys.add(e.code);
+  if (e.code.startsWith('Arrow')) e.preventDefault();
+});
+addEventListener('keyup', e => keys.delete(e.code));
+streetEl.querySelector('.street-exit').onclick = exitStreet;
+streetEl.querySelectorAll('[data-walk]').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); keys.add(`pad${b.dataset.walk}`); }));
+
+
 function applyStaticText() {
   document.documentElement.lang = LANG;
   document.querySelector('.dek').textContent = t('Every building standing today, by age and historical context.');
   document.querySelector('.about-open').textContent = t('About');
+  findInput.placeholder = t('Search a building, address or street'); findInput.setAttribute('aria-label', findInput.placeholder);
+  document.querySelector('.street-howto').textContent = t('Drag to look around. Walk with W, A, S, D or the arrows; hold Shift to run.');
+  document.querySelector('.street-exit').textContent = t('Back to the map');
+  if (found) renderSel();
   document.querySelector('.quests-open span').textContent = LANG === 'nl' ? 'Raadsels' : 'Quests';  // short, so the bar fits a phone
   document.querySelector('.graph-open span').textContent = t('Graph');
   document.querySelector('.graph-open').href = LANG === 'nl' ? 'graph.html?lang=nl' : 'graph.html';
@@ -1665,10 +1995,14 @@ renderer.setAnimationLoop(now => {
   stepFlight(now);
   uniforms.uNow.value = now / 1000;
   uniforms.uMask.value = maskTarget;
-  controls.update();
+  if (streetView) stepStreet(now);
+  else controls.update();
   const dist = camera.position.distanceTo(controls.target);
-  uniforms.uFog.value.set(dist * 1.6, dist * 4);
-  if (frame % 6 === 0) updateLabels(dist);
+  if (streetView) uniforms.uFog.value.set(260, 2200);
+  else uniforms.uFog.value.set(dist * 1.6, dist * 4);
+  if (frame % 6 === 0 && !streetView) updateLabels(dist);
+  stepMorph(now);
+  if (rowStreet) placeRowLabels();
   if (playing) {
     const t = Math.min(1, playT0 + (now - playStart) / DURATION);
     uniforms.uYear.value = playYear(t);
@@ -1686,4 +2020,5 @@ renderer.setAnimationLoop(now => {
 });
 
 
-window.__dbg = { fitToLayer, walkKml, googleUrl, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };
+
+window.__dbg = { enterStreet, openRow, closeRow, loadIndex, choose, search, fitToLayer, walkKml, googleUrl, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };

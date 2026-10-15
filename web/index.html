@@ -23,6 +23,19 @@
   </div>
 </header>
 
+<div class="find" role="search">
+  <input type="search" id="find-input" autocomplete="off" spellcheck="false" placeholder="Search a building, address or street"
+    aria-label="Search a building, address or street" aria-controls="find-results" aria-expanded="false">
+  <ul id="find-results" class="find-results" role="listbox" hidden></ul>
+  <div id="find-sel" class="find-sel" hidden></div>
+</div>
+<div id="row-labels" class="row-labels" aria-hidden="true"></div>
+<div id="street" class="street" hidden>
+  <p class="street-howto">Drag to look around. Walk with W, A, S, D or the arrows; hold Shift to run.</p>
+  <div class="street-pad" aria-label="Walk"><button data-walk="1" aria-label="Forward">▲</button><button data-walk="-1" aria-label="Back">▼</button></div>
+  <button class="street-exit">Back to the map</button>
+</div>
+
 <nav class="modes" aria-label="Colour the city by">
   <button data-mode="0" aria-pressed="true">Period</button>
   <button data-mode="3" aria-pressed="false">Layers</button>

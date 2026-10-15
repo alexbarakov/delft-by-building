@@ -32,6 +32,7 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 | `s08_curated` | Checks hand-written stories against Wikipedia and geocodes them |
 | `s09_residents` | Finds addresses of well-known residents in Dutch Wikipedia |
 | `s10_commons` | Finds more building photos on Commons by address in the file name |
+| `s13_search` | Search index (names, addresses, streets), street rows for 'side by side' and street-view eye points |
 | `s12_quests` | Resolves the quests (chains of riddles in `pipeline/quests.py`) to their buildings |
 | `s13_graph` | The ontology graph: people, events and organisations (`pipeline/ontology.py`) linked to buildings by checked stories; `web/graph.html` |
 

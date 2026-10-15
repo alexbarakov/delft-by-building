@@ -387,3 +387,6 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
   .modes .graph-open { order: -1; padding: 8px 14px; }
   .focusbox { left: 12px; right: 12px; width: auto; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 100px); }
 }
+.w-locate { margin-bottom: 8px; }
+.w-share { border: 0; background: var(--accent); color: var(--paper); border-radius: 999px; padding: 8px 16px;
+  cursor: pointer; font-size: 13px; font-weight: 700; }

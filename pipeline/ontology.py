@@ -7,7 +7,7 @@ context layer (checked against Wikipedia by s08_curated), a 'Did you know' fact 
 (id, type, English label, Dutch label, years, regex on the English text)
 """
 
-PERSON, EVENT, ORG = "person", "event", "organisation"
+PERSON, EVENT, ORG, ARCH = "person", "event", "organisation", "architect"
 
 ENTITIES = [
     # people
@@ -22,11 +22,11 @@ ENTITIES = [
     ("stevin", PERSON, "Simon Stevin", "Simon Stevin", "1548–1620", r"Stevin"),
     ("peter", PERSON, "Peter the Great", "Peter de Grote", "1672–1725", r"Peter the Great"),
     ("napoleon", PERSON, "Napoleon", "Napoleon", "1769–1821", r"Napoleon"),
-    ("dekeyser", PERSON, "Hendrick de Keyser", "Hendrick de Keyser", "1565–1621", r"Hendrick de Keyser"),
-    ("post", PERSON, "Pieter Post", "Pieter Post", "1608–1669", r"Pieter Post"),
+    ("dekeyser", ARCH, "Hendrick de Keyser", "Hendrick de Keyser", "1565–1621", r"Hendrick de Keyser"),
+    ("post", ARCH, "Pieter Post", "Pieter Post", "1608–1669", r"Pieter Post"),
     ("crabeth", PERSON, "Dirck and Wouter Crabeth", "Dirck en Wouter Crabeth", "", r"Crabeth"),
-    ("terburgh", PERSON, "Nicolaas Terburgh", "Nicolaas Terburgh", "", r"Terburgh"),
-    ("hartman", PERSON, "M.A.C. Hartman", "M.A.C. Hartman", "", r"Hartman"),
+    ("terburgh", ARCH, "Nicolaas Terburgh", "Nicolaas Terburgh", "", r"Terburgh"),
+    ("hartman", ARCH, "M.A.C. Hartman", "M.A.C. Hartman", "", r"Hartman"),
     ("vanmeegeren", PERSON, "Han van Meegeren", "Han van Meegeren", "1889–1947", r"Meegeren"),
     ("tetar", PERSON, "Paul Tétar van Elven", "Paul Tétar van Elven", "1823–1896", r"Tétar van Elven"),
     ("vanmeerten", PERSON, "Lambert van Meerten", "Lambert van Meerten", "", r"van Meerten"),

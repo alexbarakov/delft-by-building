@@ -82,7 +82,8 @@ QUESTS = [
                T("He was baptised on 31 October 1632 in the church whose tower is the second highest in the "
                  "Netherlands.",
                  "Hij werd op 31 oktober 1632 gedoopt in de kerk met de op een na hoogste kerktoren van Nederland."),
-               T("It faces the town hall across the Markt.", "Hij staat tegenover het stadhuis aan de Markt.")),
+               T("Its spire rises above everything else in the old town.",
+                 "De spits steekt boven alles in de binnenstad uit.")),
              S("vermeer", "Vlamingstraat 42",
                T("In 2015 a historian identified the spot of his painting The Little Street: the house where his "
                  "aunt lived and sold tripe. Find it.",
@@ -94,9 +95,8 @@ QUESTS = [
                  "leans.",
                  "Hij stierf in december 1675 en werd begraven in de oudste kerk van de stad, die met de scheve "
                  "toren."),
-               T("Colour by floors: its leaning tower makes it the tallest building of the old town on this map.",
-                 "Kleur naar verdiepingen: door de scheve toren is het op deze kaart het hoogste gebouw van de "
-                 "binnenstad."), photo=True, mode="floors"),
+               T("Its tower, the second tallest in the old town, stands on the Oude Delft.",
+                 "De toren, de op een na hoogste van de binnenstad, staat aan de Oude Delft."), photo=True),
          ]),
     dict(id="orange", level=1,
          title=T("Father of the fatherland", "Vader des vaderlands"),

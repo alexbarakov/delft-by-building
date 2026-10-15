@@ -21,6 +21,8 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 | Step | What it does |
 |---|---|
 | `s00_fetch_*` | Downloads the RCE and Wikidata registers, every BAG address, BGT water, OSM street names, energy labels |
+| `s01c_roofs` | LoD 2.2 roof faces per building; the viewer raises the walls from their open edges |
+| `s01d_spires` | Towers and spires above the model, as 0.5 m columns from the AHN surface model |
 | `s01b_monuments` | Links each national monument to its buildings: by the addresses RCE registers, else by its outline |
 | `s01_load` | 3D BAG tiles → buildings and their LoD 1.3 parts |
 | `s02_attributes` | Cleans construction years (placeholders, rounded years, monument register), floors, heights |
@@ -42,7 +44,7 @@ open data ──► pipeline/ (Python) ──► web/data/ (binary tiles + JSON)
 uv sync
 # raw inputs: the 3D BAG tiles listed in data/raw/tiles_needed.csv, the PDOK boundary, then the s00_* fetchers
 for s in s00_fetch_registers s00_fetch_addresses s00_fetch_water s00_fetch_energy s01_load s01b_monuments \
-         s02_attributes s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water s12_quests s13_graph; do
+         s02_attributes s01c_roofs s01d_spires s06_wiki s07_labels s08_curated s09_residents s10_commons s06_wiki s11_facts s05_layers s03_tiles s04_water s12_quests s13_graph; do
   uv run python -m pipeline.$s
 done
 python3 -m http.server 8644 --directory web

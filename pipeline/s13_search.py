@@ -113,7 +113,10 @@ def main():
 
     names, seen = [], set()
     def add(label, label_nl, g, kind):
-        k = (label.lower(), g)
+        k = (label.lower() if label else "", g)
+        # Wikidata labels many listed houses by their address ('Oude Kerkstraat 6, Delft'): the address search finds those
+        if kind == "building" and label and re.search(r"\d", label):
+            return
         if label and g is not None and k not in seen:
             seen.add(k)
             if g not in eyes:

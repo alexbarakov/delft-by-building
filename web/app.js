@@ -82,7 +82,7 @@ const NL_UI = {
   'Not this one. Far off.': 'Dit is hem niet. Ver weg.', 'A hint may help.': 'Een hint kan helpen.',
   'Today’s photo of the building to find': 'Foto van vandaag van het gebouw dat je zoekt',
   'From the graph': 'Uit de graaf', 'Back to the graph': 'Terug naar de graaf', 'Graph': 'Graaf',
-  'Search a building, address or street': 'Zoek een gebouw, adres of straat', 'Address': 'Adres', 'Building': 'Gebouw',
+  'Search a building, address or street': 'Zoek een gebouw, adres of straat', 'Search': 'Zoeken', 'Address': 'Adres', 'Building': 'Gebouw',
   'Lived here': 'Woonde hier', 'Street': 'Straat', 'Nothing found': 'Niets gevonden', 'Side by side': 'Naast elkaar', 'Clear': 'Wissen',
   '{n} is not in the register; nearest on the same side': '{n} staat niet in het register; het dichtstbijzijnde nummer aan dezelfde kant',
   'Back to the map': 'Terug naar de kaart', 'Stand in the street': 'Sta in de straat', 'Forward': 'Vooruit', 'Back': 'Terug',
@@ -1666,6 +1666,20 @@ function loadIndex() {
   return index;
 }
 const findInput = document.getElementById('find-input');
+// The field stands just right of the mode bar, whose width depends on the language and the fonts.
+const findBox = findInput.closest('.find'), modesBar = document.querySelector('.modes');
+function placeFind() {
+  if (phone.matches) { findBox.style.left = ''; return; }
+  // while in use it widens, and must stay on screen
+  const open = findBox.matches(':focus-within') || !findSel.hidden;
+  const w = open ? 300 : findBox.offsetWidth;
+  findBox.style.left = `${Math.min(modesBar.getBoundingClientRect().right + 8, innerWidth - w - 16)}px`;
+}
+addEventListener('resize', placeFind);
+document.fonts?.ready.then(placeFind);
+setTimeout(placeFind, 0);
+findInput.addEventListener('focus', placeFind);
+findInput.addEventListener('blur', () => setTimeout(placeFind, 200));
 const findList = document.getElementById('find-results');
 const findSel = document.getElementById('find-sel');
 let results = [], active = -1;
@@ -1736,7 +1750,7 @@ function setLit(gids) {
 }
 function clearFound() {
   if (rowStreet) closeRow(true);
-  found = null; findSel.hidden = true; setLit([]); orbit = false;
+  found = null; findSel.hidden = true; setLit([]); orbit = false; placeFind();
 }
 function choose(r) {
   findList.hidden = true; findInput.blur();
@@ -1763,6 +1777,7 @@ function renderSel() {
     ${st && st.row.length > 1 ? `<button class="sel-row" aria-pressed="${rowStreet === st}">${t('Side by side')}</button>` : ''}
     <button class="sel-clear" aria-label="${t('Clear')}">×</button>`;
   findSel.hidden = false;
+  placeFind();
   findSel.querySelector('.sel-street')?.addEventListener('click', () => enterStreet(found.gid));
   findSel.querySelector('.sel-row')?.addEventListener('click', () => rowStreet === st ? closeRow() : openRow(st));
   findSel.querySelector('.sel-clear').onclick = () => { clearFound(); findInput.value = ''; };
@@ -1949,7 +1964,8 @@ function applyStaticText() {
   document.documentElement.lang = LANG;
   document.querySelector('.dek').textContent = t('Every building standing today, by age and historical context.');
   document.querySelector('.about-open').textContent = t('About');
-  findInput.placeholder = t('Search a building, address or street'); findInput.setAttribute('aria-label', findInput.placeholder);
+  setTimeout(placeFind, 0);
+  findInput.placeholder = t('Search'); findInput.setAttribute('aria-label', t('Search a building, address or street'));
   document.querySelector('.street-howto').textContent = t('Drag to look around. Walk with W, A, S, D or the arrows; hold Shift to run.');
   document.querySelector('.street-exit').textContent = t('Back to the map');
   if (found) renderSel();

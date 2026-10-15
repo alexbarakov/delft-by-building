@@ -66,7 +66,7 @@ const NL_UI = {
   'You seem to be outside the city, so the walk starts at the Markt.': 'Je lijkt buiten de stad te zijn, dus de wandeling begint op de Markt.',
   'The location was not shared. Pick a start on the map instead.': 'De locatie werd niet gedeeld. Kies het begin op de kaart.',
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
-  'about {m} min': 'ongeveer {m} min', 'Stops with stories (KML)': 'Stops met verhalen (KML)', 'Import it in Google My Maps: Create a new map, then Import.': 'Importeer in Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps, part {i} of {n}': 'Google Maps, deel {i} van {n}', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
+  'about {m} min': 'ongeveer {m} min', 'Stops with stories (KML)': 'Stops met verhalen (KML)', 'Import it in Google My Maps: Create a new map, then Import.': 'Importeer in Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps takes nine stops; the paler ones lie on the way.': 'Google Maps neemt negen stops; de lichtere liggen onderweg.', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
@@ -847,7 +847,7 @@ function questClick(gid) {
 // buildings with a story in those layers, chosen greedily by story per metre and ordered by 2-opt. Distances are
 // straight lines times a detour factor; Google Maps gives the real walking route.
 const DETOUR = 1.3, WALK_KMH = 4.5, STOP_MIN = 3, MAX_STOPS = 20;
-const GOOGLE_LEG = 9;  // a Google Maps link takes at most 9 waypoints: longer walks get one link per leg
+const GOOGLE_LEG = 9;  // a Google Maps link takes at most 9 waypoints
 const walkEl = document.getElementById('walk');
 const walksDlg = document.getElementById('walks');
 const walkGroup = new THREE.Group();
@@ -971,21 +971,25 @@ function poiQuery(p) {
   if (!addr) return null;
   return [name && name !== addr ? name : null, addr, config.label].filter(Boolean).join(', ');
 }
-function googleUrls(w) {
+// One Google Maps link: it takes at most 9 waypoints, so a longer walk sends the 9 best stops in walking order;
+// the others lie on the way between them.
+function googleStops(w) {
+  const max = w.loop ? GOOGLE_LEG : GOOGLE_LEG + 1;
+  if (w.stops.length <= max) return w.stops;
+  const keep = new Set([...w.stops].sort((a, b) => b.score - a.score).slice(0, max));
+  return w.stops.filter(p => keep.has(p));
+}
+function googleUrl(w) {
   const ll = p => (!p.start && poiQuery(p)) || toLatLon(p.x, p.z).map(v => v.toFixed(6)).join(',');
-  const seq = [w.start, ...w.stops, ...(w.loop ? [w.start] : [])];
-  const urls = [], legs = Math.ceil((seq.length - 1) / (GOOGLE_LEG + 1)), per = Math.ceil((seq.length - 1) / legs);
-  for (let i = 0; i < seq.length - 1; i += per) {
-    const leg = seq.slice(i, i + per + 1);
-    const u = new URL('https://www.google.com/maps/dir/');
-    u.searchParams.set('api', '1');
-    u.searchParams.set('origin', ll(leg[0]));
-    u.searchParams.set('destination', ll(leg[leg.length - 1]));
-    if (leg.length > 2) u.searchParams.set('waypoints', leg.slice(1, -1).map(ll).join('|'));
-    u.searchParams.set('travelmode', 'walking');
-    urls.push({ url: u.toString(), from: i, to: i + leg.length - 1 });
-  }
-  return urls;
+  const stops = googleStops(w).map(ll);
+  const dest = w.loop ? ll(w.start) : stops.pop();
+  const u = new URL('https://www.google.com/maps/dir/');
+  u.searchParams.set('api', '1');
+  u.searchParams.set('origin', ll(w.start));
+  u.searchParams.set('destination', dest);
+  if (stops.length) u.searchParams.set('waypoints', stops.join('|'));
+  u.searchParams.set('travelmode', 'walking');
+  return u.toString();
 }
 // The walk as KML, for Google My Maps or any map app: every stop with its story, its sources and a photo.
 function walkKml(w) {
@@ -1151,22 +1155,24 @@ function renderWalk() {
   const w = walkRoute;
   if (!w) return;
   const mins = Math.round(w.length / 1000 / WALK_KMH * 60 + w.stops.length * STOP_MIN);
+  const inGoogle = new Set(googleStops(w));
   walkEl.hidden = false;
   walkEl.className = 'quest walk';
   walkEl.innerHTML = `
     <button class="q-close" aria-label="${t('Close')}">×</button>
     <header><b>${t('Your walk')}</b><span class="w-meta">${(w.length / 1000).toFixed(1).replace('.', LANG === 'nl' ? ',' : '.')} km · ${t('about {m} min').replace('{m}', mins)}</span></header>
-    <div class="q-actions">${googleUrls(w).map((g, i, all) => `<a class="w-google" href="${esc(g.url)}" target="_blank" rel="noopener">${all.length > 1
-      ? t('Google Maps, part {i} of {n}').replace('{i}', i + 1).replace('{n}', all.length) : t('Open in Google Maps')}</a>`).join('')}
+    <div class="q-actions"><a class="w-google" href="${esc(googleUrl(w))}" target="_blank" rel="noopener">${t('Open in Google Maps')}</a>
       <button class="w-kml" title="${t('Import it in Google My Maps: Create a new map, then Import.')}">${t('Stops with stories (KML)')}</button>
       <button class="w-change">${t('Change')}</button></div>
     <ol class="w-stops">${w.stops.map((p, i) => {
       const pref = [...p.notes].sort((a, b) => (walkPrefs.layers.includes(b.L.id) ? 1 : 0) - (walkPrefs.layers.includes(a.L.id) ? 1 : 0));
-      const story = pref.map(x => x.n.people ? x.n.people.map(q => q.person).join(', ') : tr(x.n, 'story')).find(Boolean) || '';
-      return `<li><button data-i="${i}"><span class="w-num">${i + 1}</span><span><b>${esc(poiName(p))}</b><em>${esc(story)}</em></span></button></li>`;
+      const story = pref.map(x => x.n.people ? `${t('Lived or worked here')}: ${x.n.people.map(q => q.person).join(', ')}` : tr(x.n, 'story')).find(Boolean) || '';
+      const off = !inGoogle.has(p);
+      return `<li${off ? ' class="w-off"' : ''}><button data-i="${i}"><span class="w-num">${i + 1}</span><span><b>${esc(poiName(p))}</b><em>${esc(story)}</em></span></button></li>`;
     }).join('')}</ol>
     <p class="q-credit">${w.stretched ? t('Longer than asked: few of the stories you chose lie that close.') + ' '
-      : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}</p>`;
+      : w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}${inGoogle.size < w.stops.length
+      ? ' ' + t('Google Maps takes nine stops; the paler ones lie on the way.') : ''}</p>`;
   walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null);
     const u = new URL(location.href); u.searchParams.delete('walk'); history.replaceState(null, '', u); };
   walkEl.querySelector('.w-change').onclick = openWalks;
@@ -1587,4 +1593,4 @@ renderer.setAnimationLoop(now => {
 });
 
 
-window.__dbg = { walkKml, googleUrls, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };
+window.__dbg = { walkKml, googleUrl, groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };

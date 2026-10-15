@@ -392,3 +392,5 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
   cursor: pointer; font-size: 13px; font-weight: 700; }
 .quest.walk > .q-actions { border-bottom: 1px solid var(--rule); }
 .quest.walk .w-kml { background: var(--paper); }
+.w-stops .w-off .w-num { background: #9fb0d8; }
+.w-stops .w-off b { color: #4b5560; }

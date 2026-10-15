@@ -68,7 +68,7 @@ const NL_UI = {
   'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
   'about {m} min': 'ongeveer {m} min', 'Download the walk with its stories (KML), for Google My Maps: Create a new map, then Import.': 'Download de wandeling met verhalen (KML), voor Google Mijn kaarten: maak een nieuwe kaart en kies Importeren.', 'Google Maps takes nine stops; the paler ones lie on the way.': 'Google Maps neemt negen stops; de lichtere liggen onderweg.', 'Share my location': 'Deel mijn locatie', 'Asking for your location…': 'Je locatie wordt gevraagd…', 'Start from where you are: share your location, or choose a start below.': 'Begin waar je bent: deel je locatie, of kies hieronder een begin.', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Longer than asked: few of the stories you chose lie that close.': 'Langer dan gevraagd: weinig van de gekozen verhalen liggen zo dichtbij.', 'How many stops': 'Hoeveel stops', 'As many as fit': 'Zoveel als past', 'Fewer stops than asked: that is all the stories you chose.': 'Minder stops dan gevraagd: meer verhalen van je keuze zijn er niet.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
   'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
-  'Buildings today': 'De gebouwen nu',
+  'Buildings today': 'De gebouwen nu', 'Generate a walk': 'Maak een wandeling',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
   'Your tiles': 'Jouw tegeltjes', 'Easy': 'Makkelijk', 'Medium': 'Gemiddeld', 'Hard': 'Moeilijk',
@@ -736,6 +736,7 @@ function closeQuest() { quest = null; questEl.hidden = true; markActions(); }
 function markActions() {
   document.querySelector('.walks-open').setAttribute('aria-pressed', String(!!walkRoute));
   document.querySelector('.quests-open').setAttribute('aria-pressed', String(!!quest));
+  document.body.classList.toggle('task-on', !!walkRoute || !!quest);  // on a phone the timeline steps aside
 }
 function setModeNamed(name) {
   if (name === 'floors' || name === 'energy') { setBuildingView(MODE[name]); return; }
@@ -911,7 +912,7 @@ function pois() {
   return poiCache;
 }
 const walkLayers = () => layers.filter(L => Object.values(L.notes || {}).filter(n => n.at).length >= 3);
-const poiName = p => { const n = p.notes.find(x => x.n.name && !x.n.people) || p.notes[0]; return tr(n.n, 'name') || n.n.name; };
+const poiName = p => { if (p.name) return p.name; const n = p.notes.find(x => x.n.name && !x.n.people) || p.notes[0]; return tr(n.n, 'name') || n.n.name; };
 function poiScore(p, chosen) {
   const hit = p.notes.filter(x => !chosen.length || chosen.includes(x.L.id)).length;
   if (!hit) return 0;
@@ -920,10 +921,10 @@ function poiScore(p, chosen) {
 }
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 function pathLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1], pts[i]); return d; }
-function planWalkWithGap({ layers: chosen, km, loop, stops: asked }, start, gap) {
+function planWalkWithGap({ layers: chosen, km, loop, stops: asked, custom }, start, gap) {
   const budget = km * 1000 / DETOUR;
   const S = { x: start[0], z: start[1], start: true };
-  let cand = pois().map(p => ({ ...p, score: poiScore(p, chosen) }))
+  let cand = (custom || pois().map(p => ({ ...p, score: poiScore(p, chosen) })))
     .filter(p => p.score > 0 && dist(p, S) <= (loop ? budget / 2 : budget));
   // Stops keep a spacing that grows with the walk, so a long walk goes somewhere instead of circling the Markt;
   // a closer one merges into the higher scored stop (a church with three entries is one stop).
@@ -972,7 +973,7 @@ function planAtLength(prefs, start) {
 // the distance grows (up to three times) until there are a few of them, and the card says so.
 const MIN_STOPS = 4;
 function planWalk(prefs, start) {
-  const available = pois().filter(p => poiScore(p, prefs.layers) > 0).length;
+  const available = prefs.custom ? prefs.custom.length : pois().filter(p => poiScore(p, prefs.layers) > 0).length;
   const want = Math.min(prefs.stops || MIN_STOPS, available);
   let w = planAtLength(prefs, start);
   for (let k = 1.25; w.stops.length < want && k <= 4.01; k += 0.25) {
@@ -1169,7 +1170,7 @@ function makeWalk() {
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
   flyTo((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2, null, Math.max(600, span * 2.2));
   const u = new URL(location.href);
-  u.searchParams.set('walk', [walkPrefs.km, walkPrefs.loop ? 1 : 0, startPoint().map(Math.round).join('_'), walkPrefs.layers.join('.'), walkPrefs.stops].join('~'));
+  if (walkPrefs.custom) u.searchParams.delete('walk'); else u.searchParams.set('walk', [walkPrefs.km, walkPrefs.loop ? 1 : 0, startPoint().map(Math.round).join('_'), walkPrefs.layers.join('.'), walkPrefs.stops].join('~'));
   history.replaceState(null, '', u);
 }
 function renderWalk() {
@@ -1207,12 +1208,29 @@ function renderWalk() {
     flyTo(p.x, p.z, () => { if (g >= 0) pinCard(g, innerWidth / 3, innerHeight / 2); }, 330);
   });
 }
+// A walk straight from a layer's page or from the graph: the stories of that layer, or one stop per graph group.
+function walkFromLayer(L) {
+  walkPrefs = { ...walkPrefs, layers: [L.id], custom: null, stops: 0 };
+  makeWalk();
+}
+function walkFromGroups(groups) {
+  const custom = groups.map(g => {
+    const pts = g.gids.map(building);
+    const x = pts.reduce((a, b) => a + b.x, 0) / pts.length, z = pts.reduce((a, b) => a + b.z, 0) / pts.length;
+    const own = pois().find(p => g.gids.includes(gidOf(p.bag)));
+    const w = wiki[pts[0].wk];
+    return { bag: pts[0].bag, bags: pts.map(b => b.bag), x, z, name: g.label, notes: own ? own.notes : [],
+      score: 1 + (w?.image ? 0.4 : 0) };
+  }).filter(p => Number.isFinite(p.x));
+  walkPrefs = { ...walkPrefs, custom, stops: Math.min(MAX_STOPS, custom.length) };
+  makeWalk();
+}
 function openWalks() {
   renderWalkPlanner();
   walksDlg.showModal();
   if (!locationAsked && !walkPrefs.at) requestLocation();  // the walk starts where the walker is, if they agree
 }
-document.querySelector('.walks-open').onclick = openWalks;
+document.querySelector('.walks-open').onclick = () => { walkPrefs.custom = null; openWalks(); };
 walksDlg.querySelector('.about-close').onclick = () => walksDlg.close();
 walksDlg.addEventListener('click', e => { if (e.target === walksDlg) walksDlg.close(); });
 // A shared link restores the walk: ?walk=km~loop~x_z~layer.layer
@@ -1258,8 +1276,9 @@ function showFocus(G, ids) {
   focusEl.innerHTML = `<header><b>${t('From the graph')}</b><button class="f-close" aria-label="${t('Close')}">×</button></header>
     <ul>${groups.map(g => `<li><i style="background:${GROUP_COLORS[g.color]}"></i><span>${esc(g.label)}</span>
       <small>${g.gids.length}</small></li>`).join('')}</ul>
-    <a class="f-back" href="${back}">${t('Back to the graph')}</a>`;
+    <div class="f-actions"><button class="make-walk">${t('Generate a walk')}</button><a class="f-back" href="${back}">${t('Back to the graph')}</a></div>`;
   focusEl.hidden = false;
+  focusEl.querySelector('.make-walk').onclick = () => { focusEl.hidden = true; walkFromGroups(groups); };
   focusEl.querySelector('.f-close').onclick = () => {
     uniforms.uFocusN.value = 0;
     focusEl.hidden = true;
@@ -1337,6 +1356,7 @@ function renderPanel() {
     const people = notes.flatMap(([bag, n]) => n.people.map(p => ({ ...p, bag, at: n.at })))
       .sort((a, b) => b.links - a.links);
     panel.innerHTML = `<button class="back">${t('All layers')}</button><h2 class="layer-title">${esc(tr(residentsLayer, 'title'))}</h2>
+      <button class="make-walk">${t('Generate a walk')}</button>
       <p class="layer-intro">${esc(tr(residentsLayer, 'text') || '')}</p>
       <input class="filter" type="search" placeholder="${t('Find a person')}" aria-label="${t('Find a person')}">
       <ul class="stories people">${people.map(p => `<li data-q="${esc((p.person + ' ' + (p.desc || '')).toLowerCase())}">
@@ -1345,6 +1365,7 @@ function renderPanel() {
         <span class="addr">${esc(p.address)}</span></button></li>`).join('')}</ul>
       ${residentsLayer?.caveat ? `<p class="caveat">${esc(tr(residentsLayer, 'caveat'))}</p>` : ''}`;
     panel.querySelector('.back').onclick = () => setLayer(null);
+    panel.querySelector('.make-walk').onclick = () => { collapsePanelOnPhone(); walkFromLayer(residentsLayer); };
     panel.querySelector('.filter').oninput = e => {
       const q = e.target.value.toLowerCase();
       panel.querySelectorAll('.people li').forEach(li => { li.hidden = q && !li.dataset.q.includes(q); });
@@ -1379,7 +1400,9 @@ function renderPanel() {
     });
   } else {
     panel.innerHTML = `<button class="back">${t('All layers')}</button>
-      <h2 class="layer-title">${sectionIcon(activeLayer.section)}${esc(tr(activeLayer, 'title'))}</h2><p class="layer-era">${esc(tr(activeLayer, 'era'))}</p>${layerDetail(activeLayer)}`;
+      <h2 class="layer-title">${sectionIcon(activeLayer.section)}${esc(tr(activeLayer, 'title'))}</h2><p class="layer-era">${esc(tr(activeLayer, 'era'))}</p>
+      ${Object.values(activeLayer.notes || {}).some(n => n.at) ? `<button class="make-walk">${t('Generate a walk')}</button>` : ''}${layerDetail(activeLayer)}`;
+    panel.querySelector('.make-walk')?.addEventListener('click', () => { collapsePanelOnPhone(); walkFromLayer(activeLayer); });
     panel.querySelector('.back').onclick = () => setLayer(null);
     panel.querySelectorAll('.story').forEach(b => b.onclick = () => {
       const n = activeLayer.notes[b.dataset.bag];

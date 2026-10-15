@@ -398,4 +398,9 @@ h1 { margin: 0; font-size: clamp(34px, 4.4vw, 56px); font-weight: 800; letter-sp
 .modes .walks-open svg, .modes .quests-open svg { width: 13px; height: 13px; fill: currentColor; }
 .modes button:not([aria-pressed="true"]):hover, .modes .graph-open:hover { background: var(--sky); }
 .modes .walks-open[aria-pressed="true"], .modes .quests-open[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
-@media (max-width: 720px) { .modes .walks-open, .modes .quests-open, .modes .graph-open { padding: 8px 14px; } }
+/* On a phone all five fit on one line, without scrolling. */
+@media (max-width: 720px) {
+  .modes { left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100vw - 16px); }
+  .modes button, .modes .walks-open, .modes .quests-open, .modes .graph-open { padding: 7px 9px; font-size: 13.5px; }
+  .modes .modes-sep { margin: 6px 2px; }
+}

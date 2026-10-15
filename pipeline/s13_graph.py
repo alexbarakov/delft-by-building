@@ -56,16 +56,21 @@ def main():
             nodes.append(dict(id=eid, type=kind, label=en, label_nl=nl, years=years))
         else:
             print("no building for", eid)
+    have = {n["id"] for n in nodes}
 
     # Residents: one node per person, linked by the quote that names the address.
     for r in json.load(open("data/residents.json")):
         if r["bag"] not in where:
             continue
-        rid = "res:" + r["wikidata"].rsplit("/", 1)[1]
-        if not any(n["id"] == rid for n in nodes):
+        # A resident who is already an entity (Vermeer, Agneta Matthes) joins that node.
+        known = next((e for e in ENTITIES if e[1] == PERSON and re.search(e[5], r["person"])), None)
+        rid = known[0] if known else "res:" + r["wikidata"].rsplit("/", 1)[1]
+        if not known and not any(n["id"] == rid for n in nodes):
             years = "–".join(x for x in (r["born"], r["died"]) if x)
             nodes.append(dict(id=rid, type=PERSON, label=r["person"], label_nl=r["person"], years=years,
                               desc=r.get("desc"), resident=True))
+        if known and rid not in have:
+            continue
         links.append(dict(e=rid, bag=r["bag"], text=r["quote"], text_nl=r["quote"], source=r["url"], via="Who lived here"))
 
     # Places: the buildings of one name (a hofje of eight houses, a church of two panden) become one node.

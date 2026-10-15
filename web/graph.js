@@ -58,17 +58,30 @@ function init(G) {
   const W = () => innerWidth, H = () => innerHeight;
   const panelW = () => innerWidth > 720 ? 380 : 0;
   const sim = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(l => 34 + 6 * Math.sqrt(l.source.deg || 1)).strength(.7))
-    .force('charge', d3.forceManyBody().strength(d => d.kind === 'place' ? -60 : -220))
-    .force('collide', d3.forceCollide(d => r(d) + 6))
-    .force('x', d3.forceX(() => panelW() + (W() - panelW()) / 2).strength(.05))
-    .force('y', d3.forceY(() => H() / 2).strength(.07))
+    .force('link', d3.forceLink(links).id(d => d.id).distance(l => 46 + 8 * Math.sqrt(l.source.deg || 1)).strength(.6))
+    .force('charge', d3.forceManyBody().strength(d => d.kind === 'place' ? -60 : -300).distanceMax(260))
+    .force('collide', d3.forceCollide(d => d.kind === 'place' ? 12 : r(d) + 26).strength(.9))
+    .force('x', d3.forceX(0).strength(.12))
+    .force('y', d3.forceY(0).strength(.16))
     .on('tick', () => {
       linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
       nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
     });
   const zoom = d3.zoom().scaleExtent([.3, 4]).on('zoom', e => root.attr('transform', e.transform));
   svg.call(zoom).on('dblclick.zoom', null);
+  // The graph is laid out around 0,0; the view centres it in the space right of the panel.
+  // Lay the graph out before it is shown, then fit it into the space right of the panel.
+  sim.stop();
+  for (let i = 0; i < 600; i++) sim.tick();
+  sim.on('tick')();
+  const home = () => {
+    const xs = nodes.map(n => n.x), ys = nodes.map(n => n.y);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const top = 70, bottom = innerWidth > 720 ? 20 : innerHeight * .46, left = panelW() + 20, right = 140;
+    const k = Math.max(.7, Math.min(1.2, (W() - left - right) / (x1 - x0 + 1), (H() - top - bottom) / (y1 - y0 + 1)));
+    return d3.zoomIdentity.translate(left + (W() - left - right - k * (x1 + x0)) / 2 + k * 0, top + (H() - top - bottom - k * (y1 + y0)) / 2).scale(k);
+  };
+  svg.call(zoom.transform, home());
   nodeSel.call(d3.drag()
     .on('start', (e, d) => { if (!e.active) sim.alphaTarget(.2).restart(); d.fx = d.x; d.fy = d.y; })
     .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
@@ -180,6 +193,6 @@ function init(G) {
     try { localStorage.setItem('lang', LANG); } catch {}
     applyLang();
   });
-  addEventListener('resize', () => sim.alpha(.3).restart());
+  addEventListener('resize', () => svg.call(zoom.transform, home()));
   applyLang();
 }

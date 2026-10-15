@@ -7,6 +7,7 @@
   font: 400 14px/1.5 "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--sky); color: var(--ink); overflow: hidden; }
 button, input { font: inherit; color: inherit; }
 a { color: inherit; }

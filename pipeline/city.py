@@ -9,3 +9,5 @@ SITE = "https://stop-token.com/lab/delft/"
 UA = {"User-Agent": f"{SLUG}-by-building/0.1 ({SITE})"}
 WIKIDATA = "Q690"                 # the municipality, for P131* (located in)
 ROUND_UNTIL = 1940                # round construction years before this are spread across their rounding step
+# Where a walk can start, besides the walker's own location (RD New)
+STARTS = [("Markt", "Markt", ORIGIN), ("Station", "Station", (84230.0, 447010.0))]

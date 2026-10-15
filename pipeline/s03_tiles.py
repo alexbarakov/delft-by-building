@@ -20,7 +20,7 @@ import shapely
 
 from .periods import PERIODS
 
-from .city import ORIGIN as DAM, SLUG, NAME
+from .city import ORIGIN as DAM, SLUG, NAME, STARTS
 TILE = 600.0
 SIMPLIFY = 0.25
 OUT = Path("web/data")
@@ -155,6 +155,7 @@ def main():
         hist.setdefault(int(y), [0] * len(PERIODS))[p] += 1
     config = dict(
         city=SLUG, label=NAME, tileSize=TILE, origin=DAM,
+        starts=[dict(en=en, nl=nl, x=round(p[0] - DAM[0], 1), z=round(-(p[1] - DAM[1]), 1)) for en, nl, p in STARTS],
         home=dict(x=0, z=200, azimuth=200, elevation=38, span=7000),
         periods=[dict(key=k, label=l, from_=a, to=bb, color=col) for k, l, a, bb, col in PERIODS],
         yearMin=int(years.min()), yearMax=int(years.max()),

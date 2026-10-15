@@ -55,6 +55,19 @@ const NL_UI = {
   'Dated by the register of national monuments to a century or part of one; the map spreads it across that span.': 'Door het rijksmonumentenregister gedateerd op een eeuw of een deel daarvan; de kaart spreidt het over die periode.',
   'Year from Wikidata, which dates the building earlier than BAG does; the register of national monuments gives no date.': 'Jaartal uit Wikidata, dat het gebouw eerder dateert dan de BAG; het rijksmonumentenregister geeft geen datering.',
   'A building already stood on this footprint in the 1832 land register. BAG’s year may record a rebuilding, or this house replaced the older one.': 'Op deze plek stond al een gebouw in het kadaster van 1832. Het jaartal van de BAG kan een verbouwing zijn, of dit huis verving het oudere.',
+  'Walk': 'Wandeling', 'Plan a walk': 'Plan een wandeling', 'Your walk': 'Jouw wandeling',
+  'Choose what interests you, where you start and how far you want to go. The walk links the buildings with stories on the way.': 'Kies wat je interesseert, waar je begint en hoe ver je wilt lopen. De wandeling verbindt de gebouwen met een verhaal onderweg.',
+  'What interests you': 'Wat interesseert je', 'Where you start': 'Waar je begint', 'How far': 'Hoe ver',
+  'Nothing chosen: the walk takes every story.': 'Niets gekozen: de wandeling neemt alle verhalen mee.',
+  'My location': 'Mijn locatie', 'Pick on the map': 'Kies op de kaart', 'Your location': 'Jouw locatie', 'Point on the map': 'Punt op de kaart', 'Your point': 'Jouw punt',
+  'Back to the start': 'Terug naar het begin', 'One way': 'Enkele reis', 'Make my walk': 'Maak mijn wandeling', 'Cancel': 'Annuleren',
+  'Click the map where the walk should start.': 'Klik op de kaart waar de wandeling moet beginnen.',
+  'This browser does not share its location.': 'Deze browser deelt geen locatie.',
+  'You seem to be outside the city, so the walk starts at the Markt.': 'Je lijkt buiten de stad te zijn, dus de wandeling begint op de Markt.',
+  'The location was not shared. Pick a start on the map instead.': 'De locatie werd niet gedeeld. Kies het begin op de kaart.',
+  'No stories within reach. Try a longer walk or more interests.': 'Geen verhalen binnen bereik. Probeer een langere wandeling of meer interesses.',
+  'about {m} min': 'ongeveer {m} min', 'Shorter than asked: the stories you chose lie close together.': 'Korter dan gevraagd: de verhalen die je koos liggen dicht bij elkaar.', 'Open in Google Maps': 'Open in Google Maps', 'Change': 'Wijzigen',
+  'Straight lines on the map; Google Maps shows the walking route.': 'Rechte lijnen op de kaart; Google Maps toont de looproute.',
   'Quests': 'Speurtochten', 'Start': 'Begin', 'Continue': 'Verder', 'Play again': 'Opnieuw', 'Best': 'Beste',
   'Riddles hidden in the city. Find each building on the map, using its colours and layers, and click it. Every riddle is worth three tiles; hints cost one.': 'Raadsels verstopt in de stad. Zoek elk gebouw op de kaart, met de kleuren en lagen, en klik erop. Elk raadsel is drie tegeltjes waard; een hint kost er een.',
   'Your tiles': 'Jouw tegeltjes', 'Easy': 'Makkelijk', 'Medium': 'Gemiddeld', 'Hard': 'Moeilijk',
@@ -67,6 +80,7 @@ const NL_UI = {
   'Not this one. You are getting warm.': 'Dit is hem niet. Je wordt warm.', 'Not this one. Still a few streets away.': 'Dit is hem niet. Nog een paar straten verder.',
   'Not this one. Far off.': 'Dit is hem niet. Ver weg.', 'A hint may help.': 'Een hint kan helpen.',
   'Today’s photo of the building to find': 'Foto van vandaag van het gebouw dat je zoekt',
+  'From the graph': 'Uit de graaf', 'Back to the graph': 'Terug naar de graaf', 'Graph': 'Graaf',
   'Before 1536': 'Vóór 1536', '1536–1653 After the great fire': '1536–1653 Na de stadsbrand',
   '1654–1799 After the thunderclap': '1654–1799 Na de Delftse donderslag', '1864–1913 Polytechnic and factories': '1864–1913 Polytechnische School en fabrieken',
 };
@@ -219,6 +233,7 @@ function updateLabels(dist) {
 
 // ---------- Shared uniforms ----------
 const col = c => new THREE.Color(c);
+const FOCUS_MAX = 160;  // buildings the graph can light up at once
 const uniforms = {
   uYear: { value: config.yearMax },
   uYearFrom: { value: config.yearMin - 1 },
@@ -235,6 +250,9 @@ const uniforms = {
   uEnergy: { value: ENERGY_COLORS.map(col) },
   uHover: { value: -1 },
   uSelected: { value: -1 },
+  uFocus: { value: Array(FOCUS_MAX).fill(-1) },      // buildings opened from the graph, and the colour of each
+  uFocusGroup: { value: Array(FOCUS_MAX).fill(0) },
+  uFocusN: { value: 0 },
   uFogColor: { value: col(SKY) },
   uFog: { value: new THREE.Vector2(9000, 26000) },
 };
@@ -249,6 +267,9 @@ const VERT = /* glsl */`
   uniform vec3 uGroupColor[${MAX_GROUPS}];
   uniform vec3 uMaquette;
   uniform vec3 uEnergy[13];
+  uniform float uFocus[${FOCUS_MAX}];
+  uniform int uFocusGroup[${FOCUS_MAX}];
+  uniform int uFocusN;
   out vec3 vColor;
   out vec3 vWorld;
   out float vGid;
@@ -313,6 +334,14 @@ const VERT = /* glsl */`
           p.y *= 1.0 + 2.70158 * q * q * q + 1.70158 * q * q;
           break;
         }
+      }
+    }
+    // Opened from the graph: the chosen buildings in their colours, the rest of the city as a white model.
+    if (uFocusN > 0) {
+      c = uMaquette;
+      for (int k = 0; k < ${FOCUS_MAX}; k++) {
+        if (k >= uFocusN) break;
+        if (abs(vGid - uFocus[k]) < 0.5) { c = uGroupColor[uFocusGroup[k]]; break; }
       }
     }
     if (year <= uYearFrom) c = mix(c, uMaquette, 0.8);
@@ -608,6 +637,11 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointerup', e => {
   dragging = false;
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  if (pickingStart) {
+    const at = groundAt(e.clientX, e.clientY);
+    if (at) { pickingStart = false; walkPrefs.at = at; walkPrefs.atLabel = t('Point on the map'); walkEl.hidden = true; openWalks(); }
+    return;
+  }
   const gid = pick(e.clientX, e.clientY);
   pinCard(gid === pinnedGid ? -1 : gid, e.clientX, e.clientY);
   questClick(gid);
@@ -806,6 +840,321 @@ function questClick(gid) {
   fb.textContent = msg;
   fb.className = `q-feedback ${d < 60 ? 'hot' : d < 250 ? 'warm' : 'cold'}`;
   void fb.offsetWidth; fb.classList.add('miss');
+}
+
+// ---------- Walks ----------
+// A walk through the stories the walker cares about: pick interests, a start and a distance; the stops are the
+// buildings with a story in those layers, chosen greedily by story per metre and ordered by 2-opt. Distances are
+// straight lines times a detour factor; Google Maps gives the real walking route.
+const DETOUR = 1.3, WALK_KMH = 4.5, STOP_MIN = 3, MAX_STOPS = 9;  // Google Maps links take at most 9 waypoints
+const walkEl = document.getElementById('walk');
+const walksDlg = document.getElementById('walks');
+const walkGroup = new THREE.Group();
+walkGroup.renderOrder = 5;
+scene.add(walkGroup);
+let walkPrefs = { layers: [], start: 0, km: 3, loop: true, at: null }, walkRoute = null, pickingStart = false;
+
+// WGS84 → local metres (inverse of toLatLon, Schreutelkamp and Strang van Hees, ~1 m).
+function fromLatLon(lat, lon) {
+  const p = 0.36 * (lat - 52.15517440), l = 0.36 * (lon - 5.38720621);
+  const X = 155000 + 190094.945 * l - 11832.228 * p * l - 114.221 * p * p * l - 32.391 * l ** 3 - 0.705 * p
+    - 2.34 * p ** 3 * l - 0.608 * p * l ** 3 - 0.008 * l * l + 0.148 * p * p * l ** 3;
+  const Y = 463000 + 309056.544 * p + 3638.893 * l * l + 73.077 * p * p - 157.984 * p * l * l + 59.788 * p ** 3
+    + 0.433 * l - 6.439 * p * p * l * l - 0.032 * p * l + 0.092 * l ** 4 - 0.054 * p * l ** 4;
+  return [X - config.origin[0], -(Y - config.origin[1])];
+}
+// Every building with a story, merged across layers: one stop can carry several stories.
+let poiCache = null;
+function pois() {
+  if (poiCache) return poiCache;
+  const by = new Map();
+  for (const L of layers) for (const [bag, n] of Object.entries(L.notes || {})) {
+    if (!n.at) continue;
+    const p = by.get(bag) || { bag, x: n.at[0], z: n.at[1], notes: [] };
+    p.notes.push({ L, n });
+    by.set(bag, p);
+  }
+  // One stop per named place: a complex of several buildings (a laboratory, a hofje) carries the same story on
+  // each of them; keep the building nearest their middle.
+  const byName = new Map();
+  for (const p of by.values()) {
+    const key = p.notes.map(x => x.n.name).find(Boolean) || p.bag;
+    (byName.get(key) || byName.set(key, []).get(key)).push(p);
+  }
+  poiCache = [];
+  for (const ps of byName.values()) {
+    const mx = ps.reduce((a, p) => a + p.x, 0) / ps.length, mz = ps.reduce((a, p) => a + p.z, 0) / ps.length;
+    const keep = ps.reduce((a, p) => Math.hypot(p.x - mx, p.z - mz) < Math.hypot(a.x - mx, a.z - mz) ? p : a);
+    const seen = new Set(keep.notes.map(x => x.L.id));
+    for (const p of ps) for (const x of p.notes) if (!seen.has(x.L.id)) { keep.notes.push(x); seen.add(x.L.id); }
+    poiCache.push(keep);
+  }
+  return poiCache;
+}
+const walkLayers = () => layers.filter(L => Object.values(L.notes || {}).filter(n => n.at).length >= 3);
+const poiName = p => { const n = p.notes.find(x => x.n.name && !x.n.people) || p.notes[0]; return tr(n.n, 'name') || n.n.name; };
+function poiScore(p, chosen) {
+  const hit = p.notes.filter(x => !chosen.length || chosen.includes(x.L.id)).length;
+  if (!hit) return 0;
+  const g = gidOf(p.bag), w = g >= 0 ? wiki[building(g).wk] : null;
+  return 1 + 0.5 * (hit - 1) + (w?.image ? 0.4 : 0) + (didYouKnow[p.bag] ? 0.3 : 0);
+}
+const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+function pathLen(pts) { let d = 0; for (let i = 1; i < pts.length; i++) d += dist(pts[i - 1], pts[i]); return d; }
+function planWalkWithGap({ layers: chosen, km, loop }, start, gap) {
+  const budget = km * 1000 / DETOUR;
+  const S = { x: start[0], z: start[1], start: true };
+  let cand = pois().map(p => ({ ...p, score: poiScore(p, chosen) }))
+    .filter(p => p.score > 0 && dist(p, S) <= (loop ? budget / 2 : budget));
+  // Stops keep a spacing that grows with the walk, so a long walk goes somewhere instead of circling the Markt;
+  // a closer one merges into the higher scored stop (a church with three entries is one stop).
+  cand.sort((a, b) => b.score - a.score);
+  cand = cand.filter((p, i) => !cand.slice(0, i).some(q => dist(p, q) < 25));
+  const route = loop ? [S, S] : [S];
+  const max = loop ? MAX_STOPS : MAX_STOPS + 1;
+  while (route.length - (loop ? 2 : 1) < max) {
+    let best = null;
+    for (const c of cand) {
+      if (route.includes(c) || route.some(r => !r.start && dist(r, c) < gap)) continue;
+      for (let i = 0; i < route.length; i++) {
+        const next = route[i + 1];
+        const add = next ? dist(route[i], c) + dist(c, next) - dist(route[i], next) : dist(route[i], c);
+        if (!next && loop) continue;
+        if (pathLen(route) + add > budget) continue;
+        const ratio = c.score / (add + gap);
+        if (!best || ratio > best.ratio) best = { c, i, ratio };
+      }
+    }
+    if (!best) break;
+    route.splice(best.i + 1, 0, best.c);
+  }
+  // 2-opt over the stops between the fixed ends
+  for (let improved = true; improved;) {
+    improved = false;
+    const last = loop ? route.length - 2 : route.length - 1;
+    for (let i = 1; i < last; i++) for (let j = i + 1; j <= last; j++) {
+      const a = route[i - 1], b = route[i], c = route[j], d = route[j + 1];
+      const before = dist(a, b) + (d ? dist(c, d) : 0), after = dist(a, c) + (d ? dist(b, d) : 0);
+      if (after < before - 1) { route.splice(i, j - i + 1, ...route.slice(i, j + 1).reverse()); improved = true; }
+    }
+  }
+  return { start: S, stops: route.filter(p => !p.start), loop, length: pathLen(route) * DETOUR, route,
+    score: route.reduce((n, p) => n + (p.score || 0), 0) };
+}
+// A wide spacing first; when the chosen stories are few and close together, tighter spacings keep them all.
+function planWalk(prefs, start) {
+  const wide = Math.min(400, Math.max(30, prefs.km * 1000 / DETOUR / (MAX_STOPS * 2.2)));
+  const plans = [wide, wide / 2, wide / 4, 25].map(g => planWalkWithGap(prefs, start, g));
+  const most = Math.max(...plans.map(p => p.stops.length));
+  return plans.find(p => p.stops.length >= most);  // the widest spacing that loses no stop
+}
+function googleUrl(w) {
+  const ll = p => toLatLon(p.x, p.z).map(v => v.toFixed(6)).join(',');
+  const stops = w.stops.map(ll);
+  const dest = w.loop ? ll(w.start) : stops.pop();
+  const u = new URL('https://www.google.com/maps/dir/');
+  u.searchParams.set('api', '1');
+  u.searchParams.set('origin', ll(w.start));
+  u.searchParams.set('destination', dest);
+  if (stops.length) u.searchParams.set('waypoints', stops.join('|'));
+  u.searchParams.set('travelmode', 'walking');
+  return u.toString();
+}
+// ---- on the map: a ribbon along the walk and a numbered disc over every stop
+function discTexture(text, fill, ink) {
+  const c = document.createElement('canvas'); c.width = c.height = 96;
+  const g = c.getContext('2d');
+  g.beginPath(); g.arc(48, 48, 40, 0, Math.PI * 2); g.fillStyle = fill; g.fill();
+  g.lineWidth = 7; g.strokeStyle = '#ffffff'; g.stroke();
+  g.fillStyle = ink; g.font = '800 44px "Schibsted Grotesk", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, 48, 51);
+  const t = new THREE.CanvasTexture(c); t.anisotropy = 4;
+  return t;
+}
+function drawWalk(w) {
+  walkGroup.clear();
+  if (!w) return;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#1f3f9a';
+  const pts = w.route, pos = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], len = dist(a, b) || 1, nx = -(b.z - a.z) / len * 3.5, nz = (b.x - a.x) / len * 3.5;
+    pos.push(a.x + nx, 1, a.z + nz, a.x - nx, 1, a.z - nz, b.x + nx, 1, b.z + nz,
+      a.x - nx, 1, a.z - nz, b.x - nx, 1, b.z - nz, b.x + nx, 1, b.z + nz);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  const ribbon = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.85,
+    side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }));
+  walkGroup.add(ribbon);
+  const marker = (p, text, fill, ink) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: discTexture(text, fill, ink), depthTest: false, sizeAttenuation: false }));
+    s.scale.set(0.034, 0.034, 1);
+    s.position.set(p.x, 30, p.z);
+    s.renderOrder = 20;
+    walkGroup.add(s);
+  };
+  marker(w.start, '★', '#ffffff', accent);
+  w.stops.forEach((p, i) => marker(p, String(i + 1), accent, '#ffffff'));
+}
+// ---- the planner
+function startPoint() {
+  if (walkPrefs.at) return walkPrefs.at;
+  const s = config.starts[walkPrefs.start] || config.starts[0];
+  return [s.x, s.z];
+}
+function renderWalkPlanner(msg = '') {
+  const L = walkLayers(), sel = walkPrefs.layers;
+  const startName = walkPrefs.at ? (walkPrefs.atLabel || t('Your point')) : L10(config.starts[walkPrefs.start]);
+  document.getElementById('walks-body').innerHTML = `
+    <h2 id="walks-title">${t('Plan a walk')}</h2>
+    <p class="w-lede">${t('Choose what interests you, where you start and how far you want to go. The walk links the buildings with stories on the way.')}</p>
+    <h3>${t('What interests you')}</h3>
+    <div class="w-chips">${L.map(l => `<button class="w-chip" data-l="${l.id}" aria-pressed="${sel.includes(l.id)}">${sectionIcon(l.section)}${esc(tr(l, 'title'))}</button>`).join('')}</div>
+    <p class="w-note">${sel.length ? '' : t('Nothing chosen: the walk takes every story.')}</p>
+    <h3>${t('Where you start')}</h3>
+    <div class="w-chips">${config.starts.map((s, i) => `<button class="w-chip" data-start="${i}" aria-pressed="${!walkPrefs.at && walkPrefs.start === i}">${esc(L10(s))}</button>`).join('')}
+      <button class="w-chip" data-geo aria-pressed="${walkPrefs.atLabel === t('Your location')}">${t('My location')}</button>
+      <button class="w-chip" data-pick aria-pressed="${walkPrefs.atLabel === t('Point on the map')}">${t('Pick on the map')}</button></div>
+    <p class="w-note">${t('Start')}: ${esc(startName)}</p>
+    <h3>${t('How far')}</h3>
+    <div class="w-chips">${[1, 2, 3, 5, 8].map(k => `<button class="w-chip" data-km="${k}" aria-pressed="${walkPrefs.km === k}">${k} km</button>`).join('')}
+      <span class="w-sep"></span>
+      <button class="w-chip" data-loop="1" aria-pressed="${walkPrefs.loop}">${t('Back to the start')}</button>
+      <button class="w-chip" data-loop="0" aria-pressed="${!walkPrefs.loop}">${t('One way')}</button></div>
+    ${msg ? `<p class="w-msg">${esc(msg)}</p>` : ''}
+    <div class="w-go"><button class="w-make">${t('Make my walk')}</button></div>`;
+  const body = document.getElementById('walks-body');
+  body.querySelectorAll('[data-l]').forEach(b => b.onclick = () => {
+    const id = b.dataset.l;
+    walkPrefs.layers = sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id];
+    renderWalkPlanner();
+  });
+  body.querySelectorAll('[data-start]').forEach(b => b.onclick = () => { walkPrefs.start = +b.dataset.start; walkPrefs.at = null; walkPrefs.atLabel = null; renderWalkPlanner(); });
+  body.querySelectorAll('[data-km]').forEach(b => b.onclick = () => { walkPrefs.km = +b.dataset.km; renderWalkPlanner(); });
+  body.querySelectorAll('[data-loop]').forEach(b => b.onclick = () => { walkPrefs.loop = b.dataset.loop === '1'; renderWalkPlanner(); });
+  body.querySelector('[data-geo]').onclick = () => {
+    if (!navigator.geolocation) { renderWalkPlanner(t('This browser does not share its location.')); return; }
+    navigator.geolocation.getCurrentPosition(pos => {
+      const [x, z] = fromLatLon(pos.coords.latitude, pos.coords.longitude);
+      if (Math.hypot(x, z) > 6000) { renderWalkPlanner(t('You seem to be outside the city, so the walk starts at the Markt.')); return; }
+      walkPrefs.at = [x, z]; walkPrefs.atLabel = t('Your location'); renderWalkPlanner();
+    }, () => renderWalkPlanner(t('The location was not shared. Pick a start on the map instead.')), { enableHighAccuracy: true, timeout: 10000 });
+  };
+  body.querySelector('[data-pick]').onclick = () => { pickingStart = true; walksDlg.close(); showWalkHint(); };
+  body.querySelector('.w-make').onclick = makeWalk;
+}
+function showWalkHint() {
+  walkEl.hidden = false;
+  walkEl.className = 'quest walk';
+  walkEl.innerHTML = `<header><b>${t('Plan a walk')}</b></header><p class="q-riddle">${t('Click the map where the walk should start.')}</p>
+    <div class="q-actions"><button class="w-cancel">${t('Cancel')}</button></div>`;
+  walkEl.querySelector('.w-cancel').onclick = () => { pickingStart = false; walkEl.hidden = true; openWalks(); };
+}
+// A click on the ground while picking: where the pointer ray meets the ground plane.
+function groundAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  camera.updateMatrixWorld();
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -((cy - r.top) / r.height) * 2 + 1), camera);
+  const hit = new THREE.Vector3();
+  return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit) ? [hit.x, hit.z] : null;
+}
+function makeWalk() {
+  const w = planWalk(walkPrefs, startPoint());
+  if (!w.stops.length) { renderWalkPlanner(t('No stories within reach. Try a longer walk or more interests.')); return; }
+  walkRoute = w;
+  walksDlg.close();
+  drawWalk(w);
+  renderWalk();
+  const xs = w.route.map(p => p.x), zs = w.route.map(p => p.z);
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
+  flyTo((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...zs) + Math.min(...zs)) / 2, null, Math.max(600, span * 2.2));
+  const u = new URL(location.href);
+  u.searchParams.set('walk', [walkPrefs.km, walkPrefs.loop ? 1 : 0, startPoint().map(Math.round).join('_'), walkPrefs.layers.join('.')].join('~'));
+  history.replaceState(null, '', u);
+}
+function renderWalk() {
+  const w = walkRoute;
+  if (!w) return;
+  const mins = Math.round(w.length / 1000 / WALK_KMH * 60 + w.stops.length * STOP_MIN);
+  walkEl.hidden = false;
+  walkEl.className = 'quest walk';
+  walkEl.innerHTML = `
+    <button class="q-close" aria-label="${t('Close')}">×</button>
+    <header><b>${t('Your walk')}</b><span class="w-meta">${(w.length / 1000).toFixed(1).replace('.', LANG === 'nl' ? ',' : '.')} km · ${t('about {m} min').replace('{m}', mins)}</span></header>
+    <ol class="w-stops">${w.stops.map((p, i) => {
+      const pref = [...p.notes].sort((a, b) => (walkPrefs.layers.includes(b.L.id) ? 1 : 0) - (walkPrefs.layers.includes(a.L.id) ? 1 : 0));
+      const story = pref.map(x => x.n.people ? x.n.people.map(q => q.person).join(', ') : tr(x.n, 'story')).find(Boolean) || '';
+      return `<li><button data-i="${i}"><span class="w-num">${i + 1}</span><span><b>${esc(poiName(p))}</b><em>${esc(story)}</em></span></button></li>`;
+    }).join('')}</ol>
+    <div class="q-actions"><a class="w-google" href="${esc(googleUrl(w))}" target="_blank" rel="noopener">${t('Open in Google Maps')}</a>
+      <button class="w-change">${t('Change')}</button></div>
+    <p class="q-credit">${w.length < walkPrefs.km * 600 ? t('Shorter than asked: the stories you chose lie close together.') + ' ' : ''}${t('Straight lines on the map; Google Maps shows the walking route.')}</p>`;
+  walkEl.querySelector('.q-close').onclick = () => { walkEl.hidden = true; walkRoute = null; drawWalk(null);
+    const u = new URL(location.href); u.searchParams.delete('walk'); history.replaceState(null, '', u); };
+  walkEl.querySelector('.w-change').onclick = openWalks;
+  // On a phone the list folds to its title bar and the Google Maps button; a tap on the bar opens it again.
+  walkEl.querySelector('header').onclick = () => walkEl.classList.toggle('folded');
+  walkEl.querySelectorAll('[data-i]').forEach(b => b.onclick = () => {
+    const p = w.stops[+b.dataset.i], g = gidOf(p.bag);
+    if (phone.matches) walkEl.classList.add('folded');
+    flyTo(p.x, p.z, () => { if (g >= 0) pinCard(g, innerWidth / 3, innerHeight / 2); }, 330);
+  });
+}
+function openWalks() { renderWalkPlanner(); walksDlg.showModal(); }
+document.querySelector('.walks-open').onclick = openWalks;
+walksDlg.querySelector('.about-close').onclick = () => walksDlg.close();
+walksDlg.addEventListener('click', e => { if (e.target === walksDlg) walksDlg.close(); });
+// A shared link restores the walk: ?walk=km~loop~x_z~layer.layer
+{
+  const q = new URLSearchParams(location.search).get('walk');
+  if (q) {
+    const [km, loop, at, ls] = q.split('~');
+    const [x, z] = (at || '').split('_').map(Number);
+    walkPrefs = { km: +km || 3, loop: loop !== '0', start: 0, at: Number.isFinite(x) && Number.isFinite(z) ? [x, z] : null,
+      atLabel: t('Point on the map'), layers: (ls || '').split('.').filter(id => layers.some(L => L.id === id)) };
+    setTimeout(makeWalk, 0);
+  }
+}
+
+// ---------- From the graph ----------
+// graph.html opens the map with ./?focus=<id>,<id>: the buildings of those people, events or places light up,
+// each selection in its own colour, and the rest of the city turns into a white model.
+const focusEl = document.getElementById('focus');
+const focusIds = (new URLSearchParams(location.search).get('focus') || '').split(',').filter(Boolean);
+if (focusIds.length) fetch('data/graph.json').then(r => r.json()).then(G => showFocus(G, focusIds)).catch(() => {});
+function showFocus(G, ids) {
+  const groups = [];
+  ids.forEach((id, i) => {
+    const node = G.nodes.find(n => n.id === id), place = G.places[id];
+    if (!node && !place) return;
+    const bags = place ? place.bags : G.links.filter(l => l.e === id).flatMap(l => G.places[l.p].bags);
+    const label = place ? place.name : (LANG === 'nl' && node.label_nl) || node.label;
+    groups.push({ label, color: i % GROUP_COLORS.length, gids: [...new Set(bags)].map(gidOf).filter(g => g >= 0) });
+  });
+  const gids = [], grp = [];
+  for (const g of groups) for (const gid of g.gids) {
+    if (!gids.includes(gid) && gids.length < FOCUS_MAX) { gids.push(gid); grp.push(g.color); }
+  }
+  if (!gids.length) return;
+  uniforms.uFocus.value = [...gids, ...Array(FOCUS_MAX - gids.length).fill(-1)];
+  uniforms.uFocusGroup.value = [...grp, ...Array(FOCUS_MAX - grp.length).fill(0)];
+  uniforms.uFocusN.value = gids.length;
+  const pts = gids.map(building);
+  const cx = pts.reduce((a, b) => a + b.x, 0) / pts.length, cz = pts.reduce((a, b) => a + b.z, 0) / pts.length;
+  const spread = Math.max(...pts.map(b => Math.hypot(b.x - cx, b.z - cz)));
+  flyTo(cx, cz, null, Math.min(4200, Math.max(380, spread * 2.4)));
+  const back = `graph.html?select=${encodeURIComponent(ids.join(','))}${LANG === 'nl' ? '&lang=nl' : ''}`;
+  focusEl.innerHTML = `<header><b>${t('From the graph')}</b><button class="f-close" aria-label="${t('Close')}">×</button></header>
+    <ul>${groups.map(g => `<li><i style="background:${GROUP_COLORS[g.color]}"></i><span>${esc(g.label)}</span>
+      <small>${g.gids.length}</small></li>`).join('')}</ul>
+    <a class="f-back" href="${back}">${t('Back to the graph')}</a>`;
+  focusEl.hidden = false;
+  focusEl.querySelector('.f-close').onclick = () => {
+    uniforms.uFocusN.value = 0;
+    focusEl.hidden = true;
+    const u = new URL(location.href); u.searchParams.delete('focus'); history.replaceState(null, '', u);
+  };
 }
 
 // ---------- Panel ----------
@@ -1094,6 +1443,9 @@ function applyStaticText() {
   document.querySelector('.dek').textContent = t('Every building standing today, by age and historical context.');
   document.querySelector('.about-open').textContent = t('About');
   document.querySelector('.quests-open span').textContent = t('Quests');
+  document.querySelector('.graph-open span').textContent = t('Graph');
+  document.querySelector('.graph-open').href = LANG === 'nl' ? 'graph.html?lang=nl' : 'graph.html';
+  document.querySelector('.walks-open span').textContent = t('Walk');
   document.querySelectorAll('[data-lang-block]').forEach(a => { a.hidden = a.dataset.langBlock !== LANG; });
   document.querySelectorAll('.modes button[data-mode]').forEach(b => { b.textContent = t(b.dataset.label); });
   document.querySelector('.tally-count').childNodes[1].textContent = ' ' + t('buildings');
@@ -1117,6 +1469,8 @@ function setLang(l) {
   if (pinnedGid >= 0) pinCard(pinnedGid, ...lastPin);
   renderQuest();
   if (questsDlg.open) renderQuestList();
+  if (walksDlg.open) renderWalkPlanner();
+  if (walkRoute) renderWalk();
 }
 document.querySelectorAll('.lang [data-lang]').forEach(b => b.onclick = () => setLang(b.dataset.lang));
 applyStaticText();
@@ -1151,4 +1505,4 @@ renderer.setAnimationLoop(now => {
 });
 
 
-window.__dbg = { startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };
+window.__dbg = { groundAt, planWalk, fromLatLon, toLatLon, walkPrefs: () => walkPrefs, makeWalk, startQuest, quests: () => quests, questClick, pick, uniforms, camera, controls, setLayer, layers, pinCard, showCard, building, labelGroup, labels, flyTo, startPlay, gidOf };

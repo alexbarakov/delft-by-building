@@ -4,8 +4,26 @@
     {
       "name": "delft",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8644", "--directory", "/Users/aabarakov/projects/delft-by-building/web"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8644",
+        "--directory",
+        "/Users/aabarakov/projects/delft-by-building/web"
+      ],
       "port": 8644
+    },
+    {
+      "name": "delft-graph",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8654",
+        "--directory",
+        "/Users/aabarakov/projects/delft-by-building/web"
+      ],
+      "port": 8654
     }
   ]
 }

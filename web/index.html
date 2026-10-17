@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>LAYRS: Delft</title>
+<meta name="description" content="All 37,000 buildings of Delft in 3D, coloured by the year they were built, with context layers from Vermeer's street to the 1654 gunpowder blast. Every story with its source.">
+<link rel="canonical" href="https://stop-token.com/lab/delft/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="LAYRS: Delft">
+<meta property="og:description" content="All 37,000 buildings of Delft in 3D, coloured by the year they were built, with context layers from Vermeer's street to the 1654 gunpowder blast. Every story with its source.">
+<meta property="og:url" content="https://stop-token.com/lab/delft/">
+<meta property="og:image" content="https://stop-token.com/lab/delft/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/csv" title="Buildings of Delft by construction year (CSV)" href="data/buildings.csv">
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "WebApplication", "name": "LAYRS: Delft", "url": "https://stop-token.com/lab/delft/", "description": "All 37,000 buildings of Delft in 3D, coloured by the year they were built, with context layers from Vermeer's street to the 1654 gunpowder blast. Every story with its source.", "inLanguage": "en", "applicationCategory": "ReferenceApplication", "operatingSystem": "Any (web browser with WebGL)", "isAccessibleForFree": true, "image": "https://stop-token.com/lab/delft/og.png", "about": {"@type": "City", "name": "Delft"}, "author": {"@type": "Person", "name": "Alex Barakov", "url": "https://www.linkedin.com/in/alexanderbarakov"}, "isBasedOn": {"@type": "CreativeWork", "name": "Paris, building by building", "url": "https://paris.bogachev.fr/", "author": {"@type": "Person", "name": "Alexander Bogachev"}}}, {"@type": "Dataset", "name": "Buildings of Delft by construction year", "description": "All 37,000 buildings of Delft in 3D, coloured by the year they were built, with context layers from Vermeer's street to the 1654 gunpowder blast. Every story with its source.", "url": "https://stop-token.com/lab/delft/explore/", "spatialCoverage": {"@type": "Place", "name": "Delft"}, "creator": {"@type": "Person", "name": "Alex Barakov"}, "isAccessibleForFree": true, "distribution": [{"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://stop-token.com/lab/delft/data/buildings.csv"}, {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://stop-token.com/lab/delft/data/layers.json"}]}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -11,6 +23,7 @@
 <script src="logo.js" defer></script>
 </head>
 <body>
+<noscript><p style="padding:24px;font:16px sans-serif">This map needs JavaScript. The same buildings and stories as plain pages: <a href="explore/">Explore Delft as pages</a></p></noscript>
 <canvas id="scene" aria-label="3D map of Delft's buildings"></canvas>
 <div class="veil veil-top" aria-hidden="true"></div>
 <div class="veil veil-bottom" aria-hidden="true"></div>
@@ -81,6 +94,7 @@
       <li>Energy labels: RVO via RIVM Atlas Leefomgeving. Public domain.</li>
       <li>Names, photos, stories: Wikidata, Wikipedia, Wikimedia Commons; each photo credits its author and licence.</li>
     </ul>
+    <p class="pages">Also as plain pages, for reading and for search engines: <a href="explore/">Delft, building by building</a>.</p>
     <h3>Method</h3>
     <p>Placeholder and rounded years in BAG are estimated from dated neighbours; where the monument register dates a building
     earlier, the register wins. Approximate years are paler and marked “c.”. Every hand-written story is checked against its
@@ -115,6 +129,7 @@
       <li>Energielabels: RVO via de Atlas Leefomgeving van het RIVM. Publiek domein.</li>
       <li>Namen, foto's, verhalen: Wikidata, Wikipedia, Wikimedia Commons; bij elke foto staan maker en licentie.</li>
     </ul>
+    <p class="pages">Ook als gewone pagina’s, om te lezen en voor zoekmachines: <a href="explore/">Delft, gebouw voor gebouw</a>.</p>
     <h3>Methode</h3>
     <p>Plaatshouders en afgeronde jaartallen in de BAG zijn geschat uit gedateerde buren; waar het monumentenregister een gebouw
     eerder dateert, wint het register. Geschatte jaren zijn lichter en gemarkeerd met “c.”. Elk zelfgeschreven verhaal is
